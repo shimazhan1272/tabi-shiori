@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>旅のしおり帳</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@700&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: 1カラムの手帳。上部に旅のヘッダーとタブ、下に各ページ。旅程は時刻＋縦のタイムライン。 */
+:root{
+  --paper:#f4f6f3; --card:#ffffff; --ink:#1d2733; --muted:#5b6975; --line:#d8dee1;
+  --sea:#0d7480; --sea-ink:#ffffff; --sea-soft:#e0eff0; --sun:#c98612; --danger:#b83b28;
+  --c-sight:#0d7480; --c-food:#c98612; --c-stay:#6a5bb5; --c-move:#55626d; --c-shop:#bf4f7a; --c-other:#8a8f6a;
+  --f-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
+  --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
+  --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
+  color-scheme:dark; }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.3}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--sea)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+.brand{font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.trip-title{font-size:clamp(22px,4.5vw,32px)}
+.trip-sub{color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}
+.saved{font-size:12px;color:var(--muted);min-height:1.2em;transition:opacity .3s}
+
+/* tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.tab{flex:none;background:none;border:0;padding:9px 12px;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;font-weight:500;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--sea);font-weight:700}
+
+.panel{display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px}
+.sec-head h2{font-size:19px}
+.hint{color:var(--muted);font-size:13px;margin:0}
+
+/* forms */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 14px}
+.full{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.03em;min-width:0}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],input[type=tel],input[type=email],select,textarea{
+  width:100%;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:15px}
+textarea{resize:vertical;min-height:80px}
+input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box-shadow:0 0 0 3px var(--sea-soft)}
+.static{padding:8px 0;font-size:15px;color:var(--ink);font-weight:700}
+
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px;font-weight:500}
+.btn:hover{border-color:var(--sea)}
+.btn.pri{background:var(--sea);color:var(--sea-ink);border-color:var(--sea)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--danger)}
+.btn.danger.solid{background:var(--danger);color:var(--card);border-color:var(--danger)}
+.btn.ghost{border-color:transparent;background:none}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;border-radius:6px}
+.x:hover{color:var(--danger);background:var(--sea-soft)}
+
+/* schedule */
+.day{display:flex;flex-direction:column;gap:6px}
+.day-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.day-no{font-family:var(--f-display);font-size:20px}
+.day-date{font-weight:700}
+.day-sum{margin-left:auto;color:var(--muted);font-size:13px}
+.tl{list-style:none;margin:0;padding:0}
+.ev{display:grid;grid-template-columns:62px 18px minmax(0,1fr) auto;gap:0 10px;padding:10px 0;border-bottom:1px dashed var(--line);align-items:start}
+.ev-time{font-family:var(--f-mono);font-size:15px;text-align:right;line-height:1.35;padding-top:1px}
+.ev-time small{display:block;color:var(--muted);font-size:12px}
+.ev-dot{position:relative;align-self:stretch}
+.ev-dot::before{content:"";position:absolute;left:8px;top:-10px;bottom:-11px;width:2px;background:var(--line)}
+.ev-dot::after{content:"";position:absolute;left:3px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--cat);border:2px solid var(--card)}
+.ev-title{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+.ev-meta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:13px;color:var(--muted)}
+.ev-memo{font-size:13px;margin-top:2px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ev-link{font-size:13px;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;color:var(--cat);background:color-mix(in srgb,var(--cat) 14%,transparent)}
+.chip.mv{--cat:var(--c-move);font-weight:500}
+.cat-sight{--cat:var(--c-sight)} .cat-food{--cat:var(--c-food)} .cat-stay{--cat:var(--c-stay)}
+.cat-move{--cat:var(--c-move)} .cat-shop{--cat:var(--c-shop)} .cat-other{--cat:var(--c-other)}
+.editor{border:1px solid var(--sea);border-radius:var(--r);background:var(--sea-soft);padding:14px;margin:8px 0;display:flex;flex-direction:column;gap:12px}
+.editor input,.editor select,.editor textarea{background:var(--card)}
+.empty-day{color:var(--muted);font-size:14px;padding:10px 0}
+
+/* lists */
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;gap:8px;align-items:center}
+.row-head{font-size:12px;color:var(--muted);font-weight:500}
+.r-souv{grid-template-columns:2fr 1.5fr 1.2fr 110px 1.6fr 34px}
+.r-ros{grid-template-columns:1.4fr 1.4fr 1.8fr 1.6fr 1.4fr 34px}
+.r-pack{grid-template-columns:28px 1fr 34px}
+.r-pack input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
+.r-pack.done input[type=text]{text-decoration:line-through;color:var(--muted)}
+@media (max-width:680px){
+  .r-souv,.r-ros{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--line);border-radius:8px}
+  .r-souv .x,.r-ros .x{justify-self:end}
+  .row-head{display:none}
+  .ev{grid-template-columns:50px 16px minmax(0,1fr)}
+  .ev > .btn{grid-column:3;justify-self:start;margin-top:6px}
+}
+.pchips{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 12px;font-size:13px;cursor:pointer}
+.pchip:hover{border-color:var(--sea)}
+.pchip[aria-pressed="true"]{background:var(--sea);color:var(--sea-ink);border-color:var(--sea);font-weight:700}
+.pchip.add{border-style:dashed;color:var(--sea)}
+.progress{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.progress > i{display:block;height:100%;background:var(--sea);transition:width .3s}
+.total{display:flex;justify-content:flex-end;gap:12px;font-weight:700;font-size:16px;padding-top:6px;border-top:1px solid var(--line)}
+
+/* costs */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{padding:12px 14px;border-radius:var(--r);background:var(--sea-soft)}
+.stat b{display:block;font-family:var(--f-mono);font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.key{background:var(--sea);color:var(--sea-ink)} .stat.key span{color:inherit;opacity:.85}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:70px minmax(0,1fr) 92px 40px;gap:10px;align-items:center;font-size:14px}
+.bar .track{height:12px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar .track i{display:block;height:100%;background:var(--cat)}
+.bar .amt{text-align:right;font-family:var(--f-mono)} .bar .cnt{color:var(--muted);font-size:12px;text-align:right}
+.fx{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+
+/* library */
+.plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.plan{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}
+.plan.cur{border-color:var(--sea);box-shadow:inset 0 0 0 1px var(--sea)}
+.plan h3{font-size:16px;overflow-wrap:anywhere}
+.plan .meta{font-size:13px;color:var(--muted)}
+.badge{display:inline-block;font-size:11px;font-weight:700;color:var(--sea);border:1px solid var(--sea);border-radius:99px;padding:0 8px;margin-left:6px;vertical-align:2px}
+
+/* shiori (booklet) */
+.booklet{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:clamp(18px,4vw,40px);display:flex;flex-direction:column;gap:28px}
+.cover{text-align:center;padding:20px 0 26px;border-bottom:2px solid var(--ink);display:flex;flex-direction:column;gap:8px;align-items:center}
+.cover .lead{font-size:12px;letter-spacing:.3em;color:var(--muted);font-weight:700}
+.cover h2{font-size:clamp(26px,5vw,38px)}
+.cover .period{font-family:var(--f-mono);font-size:15px}
+.cover .nights{display:inline-block;border:2px solid var(--sun);color:var(--sun);border-radius:6px;padding:2px 12px;font-weight:700;transform:rotate(-3deg)}
+.b-sec h3{font-size:18px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.b-sec h3::after{content:"";flex:1;border-top:1px solid var(--line)}
+.b-ev{display:grid;grid-template-columns:62px 18px minmax(0,1fr) auto;gap:0 10px;padding:8px 0}
+.qr{width:72px;height:72px;flex:none}
+.qr img,.qr canvas{width:72px!important;height:72px!important;background:#fff;padding:3px;border-radius:4px}
+.b-table{width:100%;border-collapse:collapse;font-size:14px;color:var(--ink)}
+.b-table th,.b-table td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.b-table th{font-size:12px;color:var(--muted);font-weight:500}
+.b-table td.n{text-align:right;font-family:var(--f-mono);white-space:nowrap}
+.tbl-wrap{overflow-x:auto}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 16px;list-style:none;padding:0;margin:0}
+.checks li{padding:2px 0}
+.checks li::before{content:"□ ";color:var(--muted)} .checks li.on::before{content:"☑ ";color:var(--sea)}
+.toggles{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px}
+.toggles input{accent-color:var(--sea)}
+
+.note{font-size:13px;color:var(--muted);background:var(--sea-soft);border-radius:8px;padding:10px 12px}
+.msg{font-size:14px;font-weight:700}
+.msg.ok{color:var(--sea)} .msg.err{color:var(--danger)}
+
+/* PDF用の書き出し面（画面外に置いて撮影する。常にライト配色） */
+.pdf-sheet{position:fixed;left:-10000px;top:0;width:794px;
+  --paper:#ffffff;--card:#ffffff;--ink:#1d2733;--muted:#5b6975;--line:#d8dee1;--sea:#0d7480;--sea-ink:#ffffff;--sea-soft:#e0eff0;--sun:#c98612;
+  --c-sight:#0d7480;--c-food:#c98612;--c-stay:#6a5bb5;--c-move:#55626d;--c-shop:#bf4f7a;--c-other:#8a8f6a;
+  background:#fff;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.pdf-sheet .booklet{border:0;border-radius:0;padding:36px 40px}
+.pdf-sheet .chip{background:transparent;border:1px solid var(--cat)}
+@media print{
+  .top .saved,.tabs,.no-print{display:none!important}
+  body{background:#fff;padding:0}
+  .booklet{border:0;padding:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">旅のしおり帳</div>
+      <h1 class="trip-title" id="hTitle"></h1>
+      <div class="trip-sub" id="hSub"></div>
+    </div>
+    <div class="saved" id="saved" aria-live="polite"></div>
+  </header>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main class="panel" id="panel"></main>
+</div>
+
+<script>
+(function(){
+const K_LIB='tabiShiori.library.v1', K_CUR='tabiShiori.current.v1', K_TAB='tabiShiori.tab.v1';
+const MAX_PLANS=20;
+const CATS=[['sight','観光'],['food','食事'],['stay','宿泊'],['move','移動'],['shop','買い物'],['other','その他']];
+const CAT_LABEL=Object.fromEntries(CATS);
+const TRANS=['','徒歩','電車','新幹線','バス','車','タクシー','飛行機','船','自転車'];
+const K_PRE='tabiShiori.presets.v1';
+const PRESETS={
+  domestic:['財布','スマートフォン','充電器・ケーブル','モバイルバッテリー','着替え','下着・靴下','パジャマ','歯ブラシ','洗面用具','常備薬','ハンカチ・ティッシュ','折りたたみ傘','健康保険証','エコバッグ'],
+  overseas:['パスポート','航空券（eチケット控え）','現地通貨・クレジットカード','海外旅行保険証','変換プラグ','SIM / Wi-Fiルーター','スマートフォン','充電器・ケーブル','着替え','常備薬','歯ブラシ','ボールペン（入国書類用）','パスポートのコピー','ネックピロー'],
+  outdoor:['登山靴','レインウェア','ザック・ザックカバー','ヘッドランプ','地図・コンパス','行動食','水（1L以上）','帽子','防寒着','手袋','救急セット','日焼け止め','登山届の控え'],
+  beach:['水着','ラッシュガード','ビーチサンダル','日焼け止め','サングラス','帽子','タオル','防水ポーチ','着替え','ビニール袋（濡れ物用）','虫よけ'],
+  business:['名刺','ノートPC・電源','資料','スーツ・シャツ','ネクタイ','革靴','充電器・ケーブル','筆記用具','社員証','領収書入れ']
+};
+const PRESET_LABEL={domestic:'国内旅行',overseas:'海外旅行',outdoor:'登山・アウトドア',beach:'海水浴・リゾート',business:'ビジネス出張'};
+const defaultPresets=()=>Object.keys(PRESETS).map(k=>({id:k,name:PRESET_LABEL[k],items:[...PRESETS[k]]}));
+function cleanPresets(a){return(Array.isArray(a)?a:[]).filter(x=>x&&typeof x==='object').map(x=>({id:String(x.id||Math.random().toString(36).slice(2,10)),name:String(x.name||'名前なし'),items:(Array.isArray(x.items)?x.items:[]).map(s=>String(s).trim()).filter(Boolean)}))}
+const CUR=[['USD','米ドル',150],['EUR','ユーロ',165],['GBP','英ポンド',195],['CNY','人民元',21],['KRW','韓国ウォン',0.11],['TWD','台湾ドル',4.7],['HKD','香港ドル',19],['THB','タイバーツ',4.4],['SGD','シンガポールドル',115],['VND','ベトナムドン',0.006],['AUD','豪ドル',100],['CAD','カナダドル',110],['CHF','スイスフラン',175]];
+const WD=['日','月','火','水','木','金','土'];
+
+const uid=()=>Math.random().toString(36).slice(2,10);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yen=n=>'¥'+Math.round(Number(n)||0).toLocaleString('ja-JP');
+const num=v=>{const n=Number(v);return isFinite(n)?n:0};
+function parseD(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function md(s){const d=parseD(s);return d?`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`:''}
+function ymd(s){const d=parseD(s);return d?d.getFullYear()+'/'+md(s):''}
+function range(d){if(!d.length)return'';const a=d[0],b=d[d.length-1];if(d.length===1)return ymd(a);return ymd(a)+' – '+(a.slice(0,4)===b.slice(0,4)?md(b):ymd(b))}
+function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:''}
+
+function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',memo:'',
+  items:[],packing:[],souvenirs:[],roster:[],
+  ins:{company:'',policy:'',from:'',to:'',tel:'',memo:''},
+  emg:{police:'',fire:'',hospital:'',embassy:'',other:''},
+  split:1,fx:{code:'USD',rate:150},updated:Date.now()}}
+function normalize(p){
+  const b=blank(),o=Object.assign(b,p&&typeof p==='object'?p:{});
+  o.ins=Object.assign(blank().ins,o.ins||{});o.emg=Object.assign(blank().emg,o.emg||{});o.fx=Object.assign(blank().fx,o.fx||{});
+  ['items','packing','souvenirs','roster'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];o[k]=o[k].filter(r=>r&&typeof r==='object');o[k].forEach(r=>{if(!r.id)r.id=uid()})});
+  if(!o.id)o.id=uid();return o}
+function days(p){
+  const s=parseD(p.start),e=parseD(p.end);if(!s)return[];
+  const out=[],end=e&&e>=s?e:s;
+  for(let d=new Date(s);d<=end&&out.length<31;d.setDate(d.getDate()+1))out.push(iso(d));
+  return out}
+function nightsText(p){const n=days(p).length;return n?(n===1?'日帰り':`${n-1}泊${n}日`):''}
+
+function sample(){
+  const p=blank();
+  Object.assign(p,{title:'京都・奈良 冬の旅（サンプル）',start:'2026-12-11',end:'2026-12-13',dest:'京都・奈良',members:'2名（山田・佐藤）',
+    memo:'これは入力例です。自由に書き換えるか、「旅程一覧」で新しい旅程を作ってください。',split:2});
+  const D=['2026-12-11','2026-12-12','2026-12-13'];
+  const it=(date,time,endTime,title,cat,transport,place,cost,url,memo)=>({id:uid(),date,time,endTime,title,cat,transport,place,cost,url:url||'',memo:memo||''});
+  p.items=[
+    it(D[0],'07:30','09:45','東京 → 京都（のぞみ）','move','新幹線','東京駅 18番線',14170,'','EX予約済み・7号車'),
+    it(D[0],'10:30','12:00','伏見稲荷大社','sight','電車','JR稲荷駅すぐ',0,'https://inari.jp/','千本鳥居は朝のうちが空いている'),
+    it(D[0],'12:30','13:30','錦市場で食べ歩き','food','電車','錦小路通',2500,''),
+    it(D[0],'14:30','16:30','清水寺','sight','バス','五条坂',500,'https://www.kiyomizudera.or.jp/'),
+    it(D[0],'18:00','','ホテルにチェックイン','stay','徒歩','四条烏丸周辺',12000,'','チェックイン15時〜'),
+    it(D[0],'19:00','21:00','夕食（先斗町）','food','徒歩','先斗町',5000,''),
+    it(D[1],'09:00','09:50','京都 → 近鉄奈良','move','電車','近鉄京都線',760,''),
+    it(D[1],'10:00','11:30','東大寺 大仏殿','sight','徒歩','奈良公園内',800,'https://www.todaiji.or.jp/'),
+    it(D[1],'12:00','13:00','昼食（柿の葉寿司）','food','徒歩','奈良町',1500,''),
+    it(D[1],'13:30','15:30','奈良公園・春日大社','sight','徒歩','',200,'','鹿せんべい代'),
+    it(D[1],'16:00','17:00','奈良 → 京都','move','電車','',760,''),
+    it(D[1],'18:00','','ホテル（連泊）','stay','',  '四条烏丸周辺',12000,''),
+    it(D[2],'09:30','11:30','嵐山・竹林の小径','sight','電車','JR嵯峨嵐山駅',240,''),
+    it(D[2],'12:00','13:00','湯豆腐ランチ','food','徒歩','嵐山',3000,''),
+    it(D[2],'15:00','16:00','京都駅でおみやげ','shop','電車','京都駅 八条口',0,''),
+    it(D[2],'16:30','18:45','京都 → 東京（のぞみ）','move','新幹線','京都駅',14170,'')
+  ];
+  p.packing=PRESETS.domestic.map((name,i)=>({id:uid(),name,checked:i<5}));
+  p.souvenirs=[
+    {id:uid(),item:'生八ツ橋 詰め合わせ',shop:'京都駅',to:'職場',price:1200,memo:'20個入り'},
+    {id:uid(),item:'抹茶ロールケーキ',shop:'祇園',to:'家族',price:1800,memo:'要冷蔵'},
+    {id:uid(),item:'鹿の手ぬぐい',shop:'奈良町',to:'自分',price:900,memo:''}
+  ];
+  p.roster=[
+    {id:uid(),name:'山田 太郎',tel:'090-0000-0000',mail:'',emg:'自宅 03-0000-0000',memo:'幹事'},
+    {id:uid(),name:'佐藤 花子',tel:'080-0000-0000',mail:'',emg:'',memo:''}
+  ];
+  p.emg={police:'110',fire:'119',hospital:'',embassy:'',other:''};
+  return p}
+
+/* ---------- storage ---------- */
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function store(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}
+let lib=[];try{lib=JSON.parse(load(K_LIB)||'[]').map(normalize)}catch(e){lib=[]}
+if(!lib.length)lib=[sample()];
+let curId=load(K_CUR);if(!lib.some(p=>p.id===curId))curId=lib[0].id;
+let presets;try{presets=JSON.parse(load(K_PRE)||'null')}catch(e){presets=null}
+presets=presets?cleanPresets(presets):defaultPresets();
+function savePresets(){store(K_PRE,JSON.stringify(presets));const el=document.getElementById('saved');if(el){el.textContent='プリセットを保存しました';el.style.opacity=1;clearTimeout(savedTimer);savedTimer=setTimeout(()=>{el.style.opacity=0},1800)}}
+const ui={presetOpen:false,presetEdit:null,presetConfirm:null,tab:load(K_TAB)||'schedule',editing:null,confirmDel:null,showRoster:false,showEmg:false,fxAmt:'',fxDir:'toYen',exportText:'',msg:null};
+const plan=()=>lib.find(p=>p.id===curId);
+let savedTimer;
+function save(){
+  const ok=store(K_LIB,JSON.stringify(lib));store(K_CUR,curId);
+  const el=document.getElementById('saved');
+  el.textContent=ok?'自動保存しました':'このブラウザでは保存できません（データ書き出しで控えを取ってください）';
+  el.style.opacity=1;clearTimeout(savedTimer);savedTimer=setTimeout(()=>{el.style.opacity=0},1800)}
+function touch(){plan().updated=Date.now();save()}
+
+/* ---------- derived ---------- */
+function totals(p){
+  const it=p.items.reduce((a,r)=>a+num(r.cost),0),sv=p.souvenirs.reduce((a,r)=>a+num(r.price),0);
+  const per=Math.max(1,Math.round(num(p.split))||1);
+  return{it,sv,all:it+sv,per,each:Math.ceil((it+sv)/per)}}
+
+/* ---------- tabs ---------- */
+const TABS=[['library','旅程一覧'],['basic','基本情報'],['schedule','旅程'],['packing','持ち物'],['souvenir','おみやげ'],['cost','費用'],['people','名簿・緊急'],['shiori','しおり'],['data','データ']];
+
+function render(){
+  const p=plan();
+  document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
+  renderSub();
+  document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${ui.tab===k}">${l}</button>`).join('');
+  const P={library,basic,schedule,packing,souvenir,cost,people,shiori,data}[ui.tab]||schedule;
+  document.getElementById('panel').innerHTML=P(p);
+  if(ui.tab==='shiori')drawQR();
+}
+function renderSub(){
+  const p=plan(),d=days(p),bits=[];
+  if(d.length)bits.push(`<span class="mono">${range(d)}</span>`,`<span>${nightsText(p)}</span>`);
+  if(p.dest)bits.push(`<span>${esc(p.dest)}</span>`);
+  if(!bits.length)bits.push('<span>基本情報で日程と行き先を入力してください</span>');
+  document.getElementById('hSub').innerHTML=bits.join('');
+}
+
+/* 旅程一覧 */
+function library(){
+  const cards=[...lib].sort((a,b)=>b.updated-a.updated).map(p=>{
+    const d=days(p),cur=p.id===curId;
+    const del=ui.confirmDel===p.id
+      ?`<span class="hint">元に戻せません</span><button class="btn sm danger solid" data-act="del-plan" data-id="${p.id}">削除する</button><button class="btn sm" data-act="cancel-del">やめる</button>`
+      :`<button class="btn sm danger ghost" data-act="ask-del" data-id="${p.id}">削除</button>`;
+    return`<div class="plan${cur?' cur':''}">
+      <h3>${esc(p.title||'（タイトル未設定）')}${cur?'<span class="badge">編集中</span>':''}</h3>
+      <div class="meta mono">${d.length?range(d)+'　'+nightsText(p):'日程未定'}</div>
+      <div class="meta">予定 ${p.items.length}件 ・ 更新 ${new Date(p.updated).toLocaleDateString('ja-JP')}</div>
+      <div class="btns">${cur?'':`<button class="btn sm pri" data-act="open-plan" data-id="${p.id}">開く</button>`}
+      <button class="btn sm" data-act="dup-plan" data-id="${p.id}">複製</button>${del}</div></div>`}).join('');
+  return`<section class="card"><div class="sec-head"><h2>保存した旅程</h2><span class="hint mono">${lib.length} / ${MAX_PLANS}</span></div>
+  <p class="hint">入力内容はこのブラウザに自動保存されます。サーバーには送信されません。</p>
+  <div class="btns" style="margin:12px 0"><button class="btn pri" data-act="new-plan">＋ 新しい旅程</button><button class="btn" data-act="add-sample">サンプルを追加</button></div>
+  ${ui.msg&&ui.msg.where==='library'?`<p class="msg ${ui.msg.type}">${esc(ui.msg.text)}</p>`:''}
+  <div class="plans">${cards}</div></section>`}
+
+/* 基本情報 */
+function basic(p){
+  return`<section class="card"><div class="sec-head"><h2>基本情報</h2></div><div class="grid" style="margin-top:12px">
+  <label class="f full">旅行タイトル<input id="b-title" type="text" data-f="title" value="${esc(p.title)}" placeholder="例：北海道 夏休み家族旅行"></label>
+  <label class="f">出発日<input id="b-start" type="date" data-f="start" value="${esc(p.start)}"></label>
+  <label class="f">帰着日<input id="b-end" type="date" data-f="end" value="${esc(p.end)}"></label>
+  <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)">旅行日数<span class="static" id="nights">${nightsText(p)||'—'}</span></div>
+  <label class="f">目的地・行き先<input id="b-dest" type="text" data-f="dest" value="${esc(p.dest)}" placeholder="例：札幌・小樽"></label>
+  <label class="f">参加者<input id="b-mem" type="text" data-f="members" value="${esc(p.members)}" placeholder="例：4名（家族）"></label>
+  <label class="f full">フリーメモ<textarea id="b-memo" data-f="memo" rows="4">${esc(p.memo)}</textarea></label>
+  </div></section>`}
+
+/* 旅程 */
+function sortItems(a){return[...a].sort((x,y)=>(x.time||'99')<(y.time||'99')?-1:(x.time||'99')>(y.time||'99')?1:0)}
+function schedule(p){
+  const d=days(p),groups=d.map((date,i)=>({date,label:`${i+1}日目`,items:sortItems(p.items.filter(r=>r.date===date))}));
+  const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));
+  if(loose.length||!d.length)groups.push({date:'',label:'日付未設定',items:loose});
+  const body=groups.map(g=>{
+    const sub=g.items.reduce((a,r)=>a+num(r.cost),0);
+    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span><span class="day-sum">${g.items.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
+    ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
+    <div><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button></div></div>`}).join('');
+  return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
+  <div class="sec-head"><h2>旅程</h2><span class="hint">旅程の合計 <b class="mono">${yen(totals(p).it)}</b></span></div>
+  ${d.length?'':'<p class="note">「基本情報」で出発日と帰着日を入れると、日ごとに予定を分けて表示します。</p>'}
+  ${body}</section>`}
+function evRow(r){
+  const url=safeUrl(r.url),cat=r.cat||'other';
+  const meta=[`<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>`];
+  if(r.transport)meta.push(`<span class="chip mv">${esc(r.transport)}</span>`);
+  if(r.place)meta.push(`<span>${esc(r.place)}</span>`);
+  if(num(r.cost))meta.push(`<span class="mono">${yen(r.cost)}</span>`);
+  return`<li class="ev cat-${cat}"><div class="ev-time">${esc(r.time||'--:--')}${r.endTime?`<small>〜${esc(r.endTime)}</small>`:''}</div><div class="ev-dot"></div>
+  <div style="min-width:0"><div class="ev-title">${esc(r.title||'（無題の予定）')}</div><div class="ev-meta">${meta.join('')}</div>
+  ${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}${url?`<a class="ev-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>`:''}</div>
+  <button class="btn sm" data-edit="${r.id}">編集</button></li>`}
+function editor(r,d){
+  const opt=(v,l,cur)=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(l)}</option>`;
+  const k=(f)=>`data-l="items" data-id="${r.id}" data-k="${f}"`;
+  return`<div class="editor"><div class="grid">
+  <label class="f">日付<select id="e-date-${r.id}" ${k('date')} data-re>${opt('','日付未設定',r.date||'')}${d.map((x,i)=>opt(x,`${i+1}日目 ${md(x)}`,r.date)).join('')}</select></label>
+  <label class="f">開始<input id="e-time-${r.id}" type="time" ${k('time')} value="${esc(r.time)}"></label>
+  <label class="f">終了<input id="e-end-${r.id}" type="time" ${k('endTime')} value="${esc(r.endTime)}"></label>
+  <label class="f full">予定名<input id="e-title-${r.id}" type="text" ${k('title')} value="${esc(r.title)}" placeholder="例：金閣寺を見学"></label>
+  <label class="f">カテゴリ<select id="e-cat-${r.id}" ${k('cat')}>${CATS.map(([v,l])=>opt(v,l,r.cat||'other')).join('')}</select></label>
+  <label class="f">移動手段<select id="e-tr-${r.id}" ${k('transport')}>${TRANS.map(t=>opt(t,t||'—',r.transport||'')).join('')}</select></label>
+  <label class="f">場所<input id="e-place-${r.id}" type="text" ${k('place')} value="${esc(r.place)}"></label>
+  <label class="f">費用（円）<input id="e-cost-${r.id}" type="number" min="0" step="1" inputmode="numeric" ${k('cost')} value="${esc(r.cost)}"></label>
+  <label class="f full">URL（しおりにQRコードで載ります）<input id="e-url-${r.id}" type="url" ${k('url')} value="${esc(r.url)}" placeholder="https://"></label>
+  <label class="f full">メモ<textarea id="e-memo-${r.id}" rows="2" ${k('memo')}>${esc(r.memo)}</textarea></label>
+  </div><div class="btns"><button class="btn pri" data-act="close-edit">完了</button><button class="btn danger" data-del="items" data-id="${r.id}">この予定を削除</button></div></div>`}
+
+/* 持ち物 */
+function packing(p){
+  const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
+  return`<section class="card" style="display:flex;flex-direction:column;gap:14px">
+  <div class="sec-head"><h2>持ち物チェック</h2><span class="mono" id="packCount">${done} / ${n}</span></div>
+  <div class="progress"><i id="packBar" style="width:${n?done/n*100:0}%"></i></div>
+  <div class="btns"><select id="presetSel" style="width:auto"><option value="">プリセットから追加…</option>${presets.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}（${x.items.length}）</option>`).join('')}</select>
+  <button class="btn sm" data-act="preset-toggle" aria-expanded="${ui.presetOpen}">${ui.presetOpen?'プリセット編集を閉じる':'プリセットを編集'}</button>
+  <span class="hint">すでにある項目は重複しません</span></div>
+  ${ui.presetOpen?presetEditor(p):''}
+  <div class="rows">${p.packing.map(r=>`<div class="row r-pack${r.checked?' done':''}"><input id="pk-c-${r.id}" type="checkbox" aria-label="準備済み" data-l="packing" data-id="${r.id}" data-k="checked"${r.checked?' checked':''}>
+    <input id="pk-n-${r.id}" type="text" data-l="packing" data-id="${r.id}" data-k="name" value="${esc(r.name)}" placeholder="持ち物"><button class="x" title="削除" aria-label="削除" data-del="packing" data-id="${r.id}">×</button></div>`).join('')||'<p class="hint">項目がありません。プリセットか「項目を追加」から始めましょう。</p>'}</div>
+  <div class="btns"><button class="btn" data-add="packing">＋ 項目を追加</button><button class="btn ghost" data-act="clear-checked">チェック済みを削除</button></div></section>`}
+
+function presetEditor(p){
+  if(!presets.some(x=>x.id===ui.presetEdit))ui.presetEdit=presets[0]?presets[0].id:null;
+  const cur=presets.find(x=>x.id===ui.presetEdit);
+  const conf=(key,label,act)=>ui.presetConfirm===key
+    ?`<span class="hint">元に戻せません</span><button class="btn sm danger solid" data-act="${act}">${label}</button><button class="btn sm" data-act="preset-cancel">やめる</button>`
+    :`<button class="btn sm danger ghost" data-act="preset-ask" data-key="${key}">${label}</button>`;
+  return`<div class="editor" style="margin:0">
+  <div class="sec-head"><h3 style="font-size:16px">プリセットの編集</h3><span class="hint">プリセットはすべての旅程で共通です</span></div>
+  <div class="pchips">${presets.map(x=>`<button class="pchip" data-act="preset-pick" data-id="${esc(x.id)}" aria-pressed="${x.id===ui.presetEdit}">${esc(x.name)}</button>`).join('')}<button class="pchip add" data-act="preset-new">＋ 新規</button></div>
+  ${cur?`<div class="grid">
+    <label class="f full">プリセット名<input id="pre-name" type="text" data-pre="name" value="${esc(cur.name)}"></label>
+    <label class="f full">持ち物（1行に1つ）<textarea id="pre-items" rows="8" data-pre="items">${esc(cur.items.join('\n'))}</textarea></label></div>
+    <div class="btns"><button class="btn sm" data-act="preset-from-list">今の持ち物リストで置き換え</button>${conf('del','このプリセットを削除','preset-del')}</div>`
+    :'<p class="hint">プリセットがありません。「＋ 新規」から作れます。</p>'}
+  <div class="btns" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px"><button class="btn sm" data-act="preset-save-list">今の持ち物リストを新しいプリセットにする</button>${conf('reset','初期状態に戻す','preset-reset')}</div>
+  </div>`}
+function refreshPresetUI(){
+  const sel=document.getElementById('presetSel');
+  if(sel)sel.innerHTML='<option value="">プリセットから追加…</option>'+presets.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}（${x.items.length}）</option>`).join('');
+  const chip=document.querySelector(`.pchip[aria-pressed="true"]`),cur=presets.find(x=>x.id===ui.presetEdit);
+  if(chip&&cur)chip.textContent=cur.name}
+function packNames(p){return[...new Set(p.packing.map(r=>String(r.name||'').trim()).filter(Boolean))]}
+
+/* おみやげ */
+function souvenir(p){
+  const f=(r,k,type,ph,extra='')=>`<input id="sv-${k}-${r.id}" type="${type}" data-l="souvenirs" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}" ${extra}>`;
+  return`<section class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div class="sec-head"><h2>おみやげリスト</h2></div>
+  <div class="rows"><div class="row r-souv row-head"><span>品物</span><span>購入先・お店</span><span>誰に</span><span>金額（円）</span><span>メモ</span><span></span></div>
+  ${p.souvenirs.map(r=>`<div class="row r-souv">${f(r,'item','text','品物')}${f(r,'shop','text','購入先・お店')}${f(r,'to','text','誰に')}${f(r,'price','number','金額（円）','min="0" inputmode="numeric"')}${f(r,'memo','text','メモ')}<button class="x" aria-label="削除" data-del="souvenirs" data-id="${r.id}">×</button></div>`).join('')}</div>
+  <div class="btns"><button class="btn" data-add="souvenirs">＋ おみやげを追加</button></div>
+  <div class="total"><span>合計</span><span class="mono" id="svTotal">${yen(totals(p).sv)}</span></div></section>`}
+
+/* 費用 */
+function costSummary(p){
+  const t=totals(p),by={};CATS.forEach(([k])=>by[k]={sum:0,n:0});
+  p.items.forEach(r=>{const c=by[r.cat]?r.cat:'other';by[c].sum+=num(r.cost);by[c].n++});
+  by.shop.sum+=t.sv;by.shop.n+=p.souvenirs.length;
+  const max=Math.max(1,...Object.values(by).map(v=>v.sum));
+  const d=days(p);
+  const perDay=d.map((x,i)=>`<tr><td>${i+1}日目 ${md(x)}</td><td class="n">${yen(p.items.filter(r=>r.date===x).reduce((a,r)=>a+num(r.cost),0))}</td></tr>`).join('');
+  return`<div class="stats"><div class="stat"><span>旅程の合計</span><b>${yen(t.it)}</b></div><div class="stat"><span>おみやげ</span><b>${yen(t.sv)}</b></div>
+  <div class="stat"><span>全体の合計</span><b>${yen(t.all)}</b></div><div class="stat key"><span>1人あたり（${t.per}人で割り勘）</span><b>${yen(t.each)}</b></div></div>
+  <h3 style="font-size:16px;margin-top:6px">カテゴリ別</h3>
+  <div class="bars">${CATS.map(([k,l])=>`<div class="bar cat-${k}"><span>${l}${k==='shop'?'<small style="color:var(--muted)">*</small>':''}</span><span class="track"><i style="width:${by[k].sum/max*100}%"></i></span><span class="amt">${yen(by[k].sum)}</span><span class="cnt">${by[k].n}件</span></div>`).join('')}</div>
+  <p class="hint">* 買い物にはおみやげリストの金額を含みます。</p>
+  ${perDay?`<h3 style="font-size:16px">日別</h3><div class="tbl-wrap"><table class="b-table"><tbody>${perDay}</tbody></table></div>`:''}`}
+function cost(p){
+  const cur=CUR.find(c=>c[0]===p.fx.code)||CUR[0];
+  return`<section class="card" style="display:flex;flex-direction:column;gap:14px">
+  <div class="sec-head"><h2>費用の集計</h2><label class="f" style="flex-direction:row;align-items:center;gap:8px;font-size:14px">割り勘する人数<input id="c-split" type="number" min="1" step="1" style="width:80px" data-f="split" value="${esc(p.split)}"></label></div>
+  <div id="costSummary" style="display:flex;flex-direction:column;gap:12px">${costSummary(p)}</div></section>
+  <section class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div class="sec-head"><h2>通貨の換算</h2></div>
+  <p class="hint">レートは手入力です。初期値はおおよその目安なので、両替所や銀行の最新レートに置き換えてください。</p>
+  <div class="fx">
+  <label class="f">通貨<select id="fx-code" data-f="fx.code" data-re>${CUR.map(c=>`<option value="${c[0]}"${c[0]===cur[0]?' selected':''}>${c[0]} ${c[1]}</option>`).join('')}</select></label>
+  <label class="f">1 ${cur[0]} = 何円<input id="fx-rate" type="number" step="any" min="0" data-f="fx.rate" value="${esc(p.fx.rate)}"></label>
+  <label class="f">換算の向き<select id="fx-dir" data-ui="fxDir"><option value="toYen"${ui.fxDir==='toYen'?' selected':''}>${cur[0]} → 円</option><option value="fromYen"${ui.fxDir==='fromYen'?' selected':''}>円 → ${cur[0]}</option></select></label>
+  <label class="f">金額<input id="fx-amt" type="number" step="any" data-ui="fxAmt" value="${esc(ui.fxAmt)}" placeholder="例：25"></label>
+  </div><div class="static mono" id="fxOut" style="font-size:20px">${fxOut(p)}</div></section>`}
+function fxOut(p){
+  const r=num(p.fx.rate),a=num(ui.fxAmt);const code=p.fx.code;
+  if(!ui.fxAmt||!r)return'—';
+  return ui.fxDir==='toYen'?`${a.toLocaleString('ja-JP')} ${code} ≒ ${yen(a*r)}`:`${yen(a)} ≒ ${(a/r).toLocaleString('ja-JP',{maximumFractionDigits:2})} ${code}`}
+
+/* 名簿・緊急 */
+function people(p){
+  const f=(r,k,type,ph)=>`<input id="ro-${k}-${r.id}" type="${type}" data-l="roster" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}">`;
+  const g=(obj,k,label,type='text')=>`<label class="f">${label}<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}" value="${esc(plan()[obj][k])}"></label>`;
+  return`<p class="note">名簿・保険・緊急連絡先は個人情報です。しおりには、表示を選んだときだけ載ります。データ書き出しのJSONには含まれます。</p>
+  <section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>名簿</h2><span class="hint">${p.roster.length}名</span></div>
+  <div class="rows"><div class="row r-ros row-head"><span>氏名</span><span>電話番号</span><span>メールアドレス</span><span>緊急連絡先</span><span>メモ</span><span></span></div>
+  ${p.roster.map(r=>`<div class="row r-ros">${f(r,'name','text','氏名')}${f(r,'tel','tel','電話番号')}${f(r,'mail','email','メールアドレス')}${f(r,'emg','text','緊急連絡先')}${f(r,'memo','text','メモ')}<button class="x" aria-label="削除" data-del="roster" data-id="${r.id}">×</button></div>`).join('')}</div>
+  <div class="btns"><button class="btn" data-add="roster">＋ メンバーを追加</button></div></section>
+  <section class="card"><div class="sec-head"><h2>旅行保険</h2></div><div class="grid" style="margin-top:12px">
+  ${g('ins','company','保険会社')}${g('ins','policy','証券番号')}${g('ins','from','保険開始日','date')}${g('ins','to','保険終了日','date')}${g('ins','tel','保険会社の緊急連絡先','tel')}
+  <label class="f full">保険メモ<textarea id="ins-memo" rows="2" data-f="ins.memo">${esc(p.ins.memo)}</textarea></label></div></section>
+  <section class="card"><div class="sec-head"><h2>緊急連絡先メモ</h2><span class="hint">海外では現地の番号を確認しておきましょう</span></div><div class="grid" style="margin-top:12px">
+  ${g('emg','police','警察・緊急')}${g('emg','fire','救急・消防')}${g('emg','hospital','現地の病院')}${g('emg','embassy','大使館・領事館')}
+  <label class="f full">その他<textarea id="emg-other" rows="2" data-f="emg.other">${esc(p.emg.other)}</textarea></label></div></section>`}
+
+/* しおり */
+function shiori(p){
+  const d=days(p),t=totals(p);
+  const groups=d.map((x,i)=>({label:`${i+1}日目`,date:x,items:sortItems(p.items.filter(r=>r.date===x))}));
+  const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));if(loose.length)groups.push({label:'日付未設定',date:'',items:loose});
+  const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span></div>
+    ${g.items.map(r=>{const url=safeUrl(r.url),cat=r.cat||'other';return`<div class="b-ev ev cat-${cat}"><div class="ev-time">${esc(r.time||'')}${r.endTime?`<small>〜${esc(r.endTime)}</small>`:''}</div><div class="ev-dot"></div>
+      <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta"><span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
+      ${url?`<div class="qr" data-qr="${esc(url)}" title="${esc(url)}"></div>`:'<div></div>'}</div>`}).join('')||'<div class="empty-day">予定なし</div>'}</div>`).join('');
+  const pk=p.packing.length?`<section class="b-sec"><h3>持ち物</h3><ul class="checks">${p.packing.map(r=>`<li class="${r.checked?'on':''}">${esc(r.name)}</li>`).join('')}</ul></section>`:'';
+  const sv=p.souvenirs.length?`<section class="b-sec"><h3>おみやげ</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>品物</th><th>お店</th><th>誰に</th><th style="text-align:right">金額</th></tr></thead><tbody>${p.souvenirs.map(r=>`<tr><td>${esc(r.item)}</td><td>${esc(r.shop)}</td><td>${esc(r.to)}</td><td class="n">${yen(r.price)}</td></tr>`).join('')}</tbody></table></div></section>`:'';
+  const ro=ui.showRoster&&p.roster.length?`<section class="b-sec"><h3>名簿</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>氏名</th><th>電話</th><th>緊急連絡先</th><th>メモ</th></tr></thead><tbody>${p.roster.map(r=>`<tr><td>${esc(r.name)}</td><td class="mono">${esc(r.tel)}</td><td>${esc(r.emg)}</td><td>${esc(r.memo)}</td></tr>`).join('')}</tbody></table></div></section>`:'';
+  const em=ui.showEmg?`<section class="b-sec"><h3>保険・緊急連絡先</h3><table class="b-table"><tbody>${[['保険会社',p.ins.company],['証券番号',p.ins.policy],['保険期間',(p.ins.from||p.ins.to)?`${p.ins.from} 〜 ${p.ins.to}`:''],['保険会社の連絡先',p.ins.tel],['警察・緊急',p.emg.police],['救急・消防',p.emg.fire],['現地の病院',p.emg.hospital],['大使館・領事館',p.emg.embassy],['その他',p.emg.other]].filter(x=>x[1]).map(x=>`<tr><th style="width:9em">${x[0]}</th><td>${esc(x[1])}</td></tr>`).join('')}</tbody></table></section>`:'';
+  return`<div class="card no-print" style="display:flex;flex-direction:column;gap:8px"><div class="toggles">
+  <label><input id="t-ros" type="checkbox" data-ui="showRoster"${ui.showRoster?' checked':''}> 名簿を載せる</label>
+  <label><input id="t-emg" type="checkbox" data-ui="showEmg"${ui.showEmg?' checked':''}> 保険・緊急連絡先を載せる</label></div>
+  <div class="btns"><button class="btn pri" data-act="pdf">PDFで保存</button><span id="pdfMsg" class="msg" aria-live="polite"></span></div>
+  <p class="hint">下のしおりをA4サイズのPDFにします。旅程のURLはQRコードになります。</p></div>
+  <article class="booklet">
+  <div class="cover"><span class="lead">旅のしおり</span><h2>${esc(p.title||'（タイトル未設定）')}</h2>
+  ${d.length?`<span class="period">${range(d)}</span><span class="nights">${nightsText(p)}</span>`:''}
+  ${p.dest?`<span>行き先：${esc(p.dest)}</span>`:''}${p.members?`<span>参加者：${esc(p.members)}</span>`:''}</div>
+  ${p.memo?`<section class="b-sec"><h3>メモ</h3><div style="white-space:pre-wrap">${esc(p.memo)}</div></section>`:''}
+  <section class="b-sec"><h3>旅程</h3>${sched||'<p class="hint">予定がありません</p>'}</section>
+  ${pk}${sv}
+  <section class="b-sec"><h3>費用</h3><table class="b-table"><tbody><tr><th>旅程の合計</th><td class="n">${yen(t.it)}</td></tr><tr><th>おみやげ</th><td class="n">${yen(t.sv)}</td></tr><tr><th>全体の合計</th><td class="n"><b>${yen(t.all)}</b></td></tr><tr><th>1人あたり（${t.per}人）</th><td class="n"><b>${yen(t.each)}</b></td></tr></tbody></table></section>
+  ${ro}${em}</article>`}
+function drawQR(){
+  if(typeof QRCode==='undefined')return;
+  document.querySelectorAll('[data-qr]').forEach(el=>{el.innerHTML='';try{new QRCode(el,{text:el.dataset.qr,width:144,height:144,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}catch(e){}})}
+
+/* PDF書き出し */
+const LIBS={h2c:'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'};
+const libP={};
+function loadLib(k){return libP[k]||(libP[k]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=LIBS[k];s.onload=res;s.onerror=()=>{delete libP[k];s.remove();rej(new Error('load'))};document.head.appendChild(s)}))}
+const downloadsP=(window.claude&&typeof window.claude.use==='function')?Promise.resolve(window.claude.use('downloads')).catch(()=>null):Promise.resolve(null);
+async function exportPdf(btn){
+  const out=document.getElementById('pdfMsg');const say=(t,c)=>{if(out){out.textContent=t;out.className='msg '+(c||'')}};
+  btn.disabled=true;say('PDFを作成しています…');
+  let host;
+  try{
+    await Promise.all([loadLib('h2c'),loadLib('pdf')]);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    host=document.createElement('div');host.className='pdf-sheet';
+    const clone=document.querySelector('.booklet').cloneNode(true);host.appendChild(clone);document.body.appendChild(host);
+    const W=clone.offsetWidth,totalH=clone.offsetHeight,top=clone.getBoundingClientRect().top;
+    const breaks=[...new Set([...clone.querySelectorAll('.b-sec,.day,.b-ev:not(.day-head + .b-ev),tbody tr:not(:first-child)')]
+      .map(el=>Math.round(el.getBoundingClientRect().top-top)).filter(v=>v>0))].sort((a,b)=>a-b);
+    const scale=2;
+    const canvas=await html2canvas(clone,{scale,backgroundColor:'#ffffff',logging:false});
+    const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+    const M=10,cw=210-2*M,ch=297-2*M-6,pageH=W*ch/cw;
+    const pages=[];let y=0;
+    while(y<totalH-1){const lim=y+pageH;let next;
+      if(lim>=totalH)next=totalH;else{const c=breaks.filter(b=>b>y+pageH*0.4&&b<=lim);next=c.length?c[c.length-1]:lim}
+      pages.push([y,next]);y=next}
+    pages.forEach(([a,b],i)=>{
+      if(i)pdf.addPage();
+      const sl=document.createElement('canvas');sl.width=canvas.width;sl.height=Math.max(1,Math.ceil((b-a)*scale));
+      const g=sl.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,sl.width,sl.height);g.drawImage(canvas,0,-Math.round(a*scale));
+      pdf.addImage(sl.toDataURL('image/jpeg',0.92),'JPEG',M,M,cw,(b-a)*cw/W);
+      pdf.setFontSize(9);pdf.setTextColor(130);pdf.text(`${i+1} / ${pages.length}`,105,290,{align:'center'})});
+    const name=(plan().title||'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'').trim().slice(0,80)||'旅程';
+    const filename=`旅のしおり_${name}.pdf`;
+    const dl=await downloadsP;
+    if(dl){
+      try{await dl.save({filename,data:pdf.output('blob')});say(`PDF（${pages.length}ページ）を保存しました。`,'ok')}
+      catch(err){const c=err&&err.code;
+        say(c==='declined'?'保存をキャンセルしました。':c==='rate_limited'?'保存の確認画面がすでに開いています。閉じてからもう一度押してください。':'この画面ではファイルを保存できませんでした。','err')}
+    }else{pdf.save(filename);say(`PDF（${pages.length}ページ）をダウンロードしました。`,'ok')}
+  }catch(e){say('PDFを作成できませんでした。インターネット接続を確認して、もう一度押してください。','err')}
+  finally{if(host)host.remove();btn.disabled=false}
+}
+
+/* JSON保存 */
+async function saveJson(all,btn){
+  const p=plan(),name=(p.title||'').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'').trim().slice(0,80)||'旅程';
+  const text=all?JSON.stringify({app:'tabi-shiori',plans:lib,presets},null,2):JSON.stringify(p,null,2);
+  const filename=all?`旅のしおり_全旅程_${iso(new Date())}.json`:`旅のしおり_${name}.json`;
+  btn.disabled=true;
+  try{
+    const dl=await downloadsP;
+    if(dl){
+      try{await dl.save({filename,data:text});msg('export','ok',`「${filename}」を保存しました。`)}
+      catch(err){const c=err&&err.code;
+        msg('export','err',c==='declined'?'保存をキャンセルしました。':c==='rate_limited'?'保存の確認画面がすでに開いています。閉じてからもう一度押してください。':'この画面ではファイルを保存できませんでした。「テキストで表示」からコピーしてください。')}
+    }else{
+      const url=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+      const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),10000);
+      msg('export','ok',`「${filename}」をダウンロードしました。`)}
+  }finally{const nb=document.querySelector(`[data-act="${all?'save-all':'save-cur'}"]`);if(nb)nb.disabled=false}
+}
+
+/* データ */
+function data(p){
+  return`<section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>データの書き出し</h2></div>
+  <p class="hint">JSONファイルとして保存します。「データの取り込み」で読み込めば、別のブラウザや端末に移せます。名簿などの個人情報も含まれます。「すべての旅程」には自分で編集した持ち物プリセットも入ります。</p>
+  <div class="btns"><button class="btn pri" data-act="save-cur">この旅程をJSONで保存</button><button class="btn" data-act="save-all">すべての旅程をJSONで保存</button></div>
+  <div class="btns"><span class="hint">ファイルを保存できないときは</span><button class="btn sm ghost" data-act="export-cur">テキストで表示</button>${ui.exportText?'<button class="btn sm" data-act="copy">コピー</button>':''}</div>
+  ${ui.exportText?`<textarea id="exportBox" rows="8" readonly class="mono" style="font-size:12px">${esc(ui.exportText)}</textarea>`:''}
+  ${ui.msg&&ui.msg.where==='export'?`<p class="msg ${ui.msg.type}">${esc(ui.msg.text)}</p>`:''}</section>
+  <section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>データの取り込み</h2></div>
+  <p class="hint">書き出したJSONファイルを選ぶか、テキストを貼り付けてください。取り込んだ旅程は新しい旅程として追加され、今の内容は上書きされません。</p>
+  <label class="f">JSONファイル<input id="importFile" type="file" accept=".json,application/json,text/plain"></label>
+  <label class="f">またはテキストを貼り付け<textarea id="importBox" rows="5" class="mono" style="font-size:12px"></textarea></label>
+  <div class="btns"><button class="btn pri" data-act="import">取り込む</button></div>
+  ${ui.msg&&ui.msg.where==='import'?`<p class="msg ${ui.msg.type}">${esc(ui.msg.text)}</p>`:''}</section>`}
+function importText(txt){
+  let obj;try{obj=JSON.parse(txt)}catch(e){return msg('import','err','JSONとして読み込めませんでした。書き出したテキストをそのまま貼り付けてください。')}
+  let preAdded=0;
+  if(obj&&Array.isArray(obj.presets)){const names=new Set(presets.map(x=>x.name));
+    cleanPresets(obj.presets).forEach(x=>{if(!names.has(x.name)){x.id=uid();presets.push(x);names.add(x.name);preAdded++}});if(preAdded)savePresets()}
+  const preNote=preAdded?`持ち物プリセットも${preAdded}件追加しました。`:'';
+  const arr=Array.isArray(obj)?obj:Array.isArray(obj&&obj.plans)?obj.plans:[obj];
+  const valid=arr.filter(x=>x&&typeof x==='object'&&('title' in x||'items' in x));
+  if(!valid.length)return preAdded?msg('import','ok',`持ち物プリセットを${preAdded}件追加しました。`):msg('import','err','旅程のデータが見つかりませんでした。');
+  const room=MAX_PLANS-lib.length;
+  if(room<=0)return msg('import','err',`保存できる旅程は${MAX_PLANS}件までです。「旅程一覧」で不要な旅程を削除してください。`);
+  const add=valid.slice(0,room).map(x=>{const n=normalize(JSON.parse(JSON.stringify(x)));if(lib.some(p=>p.id===n.id))n.id=uid();n.updated=Date.now();return n});
+  lib.push(...add);curId=add[0].id;save();
+  msg('import','ok',`${add.length}件の旅程を取り込み、「${add[0].title||'タイトル未設定'}」を開きました。`+(valid.length>add.length?`（上限のため${valid.length-add.length}件は取り込んでいません）`:'')+preNote);
+}
+function msg(where,type,text){ui.msg={where,type,text};render()}
+
+/* ---------- events ---------- */
+function setPath(o,path,v){const ks=path.split('.');let t=o;while(ks.length>1)t=t[ks.shift()];t[ks[0]]=v}
+function val(t){if(t.type==='checkbox')return t.checked;if(t.type==='number')return t.value===''?'':Number(t.value);return t.value}
+function onEdit(e){
+  const t=e.target,p=plan();
+  if(t.dataset.ui){ui[t.dataset.ui]=t.type==='checkbox'?t.checked:t.value;
+    if(t.dataset.ui==='fxAmt'||t.dataset.ui==='fxDir'){const o=document.getElementById('fxOut');if(o)o.textContent=fxOut(p)}else render();return}
+  if(t.dataset.pre){const x=presets.find(q=>q.id===ui.presetEdit);if(!x)return;
+    if(t.dataset.pre==='name')x.name=t.value.trim()||'名前なし';
+    else x.items=t.value.split('\n').map(s=>s.trim()).filter(Boolean);
+    savePresets();refreshPresetUI();return}
+  if(t.dataset.f){
+    if(t.dataset.f==='fx.code'){const c=CUR.find(x=>x[0]===t.value);p.fx.code=t.value;if(c)p.fx.rate=c[2];touch();render();return}
+    setPath(p,t.dataset.f,val(t));
+  }else if(t.dataset.l){const row=p[t.dataset.l].find(r=>r.id===t.dataset.id);if(!row)return;row[t.dataset.k]=val(t)}
+  else return;
+  touch();
+  if(t.hasAttribute('data-re')&&e.type==='change'){render();return}
+  // live derived values
+  if(t.dataset.f==='title')document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
+  if(t.dataset.f==='dest'||t.dataset.f==='start'||t.dataset.f==='end'){renderSub();const ne=document.getElementById('nights');if(ne)ne.textContent=nightsText(p)||'—'}
+  const cs=document.getElementById('costSummary');if(cs)cs.innerHTML=costSummary(p);
+  const st=document.getElementById('svTotal');if(st)st.textContent=yen(totals(p).sv);
+  const fo=document.getElementById('fxOut');if(fo)fo.textContent=fxOut(p);
+  if(t.dataset.l==='packing'&&t.dataset.k==='checked'){t.closest('.row').classList.toggle('done',t.checked);
+    const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
+    document.getElementById('packCount').textContent=`${done} / ${n}`;document.getElementById('packBar').style.width=(n?done/n*100:0)+'%'}
+}
+document.addEventListener('input',e=>{if(e.target.type==='checkbox'||e.target.tagName==='SELECT')return;onEdit(e)});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='presetSel'){addPreset(t.value);return}
+  if(t.id==='importFile'){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importText(String(r.result));r.readAsText(f);return}
+  if(t.type==='checkbox'||t.tagName==='SELECT'||t.hasAttribute('data-re'))onEdit(e);
+});
+function addPreset(k){
+  const p=plan(),pre=presets.find(x=>x.id===k);if(!pre)return;const list=pre.items;
+  const have=new Set(p.packing.map(r=>r.name.trim()));
+  list.forEach(name=>{if(!have.has(name))p.packing.push({id:uid(),name,checked:false})});touch();render()}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;const p=plan(),d=b.dataset;
+  if(d.tab){ui.tab=d.tab;ui.editing=null;ui.confirmDel=null;ui.msg=null;store(K_TAB,d.tab);render();window.scrollTo({top:0});return}
+  if(d.edit){ui.editing=d.edit;render();const el=document.getElementById('e-title-'+d.edit);if(el)el.focus();return}
+  if(d.add){
+    let row;
+    if(d.add==='items')row={id:uid(),date:d.date||'',time:'',endTime:'',title:'',cat:'sight',transport:'',place:'',cost:'',url:'',memo:''};
+    else if(d.add==='packing')row={id:uid(),name:'',checked:false};
+    else if(d.add==='souvenirs')row={id:uid(),item:'',shop:'',to:'',price:'',memo:''};
+    else if(d.add==='roster')row={id:uid(),name:'',tel:'',mail:'',emg:'',memo:''};
+    p[d.add].push(row);if(d.add==='items')ui.editing=row.id;touch();render();
+    const first=d.add==='items'?document.getElementById('e-title-'+row.id):document.querySelector(`[data-id="${row.id}"][type=text]`);if(first)first.focus();return}
+  if(d.del){p[d.del]=p[d.del].filter(r=>r.id!==d.id);if(ui.editing===d.id)ui.editing=null;touch();render();return}
+  switch(d.act){
+    case'close-edit':ui.editing=null;render();break;
+    case'pdf':exportPdf(b);break;
+    case'clear-checked':p.packing=p.packing.filter(r=>!r.checked);touch();render();break;
+    case'preset-toggle':ui.presetOpen=!ui.presetOpen;ui.presetConfirm=null;render();break;
+    case'preset-pick':ui.presetEdit=d.id;ui.presetConfirm=null;render();break;
+    case'preset-new':case'preset-save-list':{
+      const x=d.act==='preset-new'?{id:uid(),name:'新しいプリセット',items:[]}:{id:uid(),name:p.title?p.title.replace(/（サンプル）$/,'')+'の持ち物':'マイプリセット',items:packNames(p)};
+      presets.push(x);ui.presetEdit=x.id;ui.presetConfirm=null;savePresets();render();
+      const el=document.getElementById('pre-name');if(el){el.focus();el.select()}break}
+    case'preset-from-list':{const x=presets.find(q=>q.id===ui.presetEdit);if(x){x.items=packNames(p);savePresets();render()}break}
+    case'preset-ask':ui.presetConfirm=d.key;render();break;
+    case'preset-cancel':ui.presetConfirm=null;render();break;
+    case'preset-del':presets=presets.filter(q=>q.id!==ui.presetEdit);ui.presetEdit=null;ui.presetConfirm=null;savePresets();render();break;
+    case'preset-reset':presets=defaultPresets();ui.presetEdit=null;ui.presetConfirm=null;savePresets();render();break;
+    case'new-plan':case'add-sample':case'dup-plan':{
+      if(lib.length>=MAX_PLANS){msg('library','err',`保存できる旅程は${MAX_PLANS}件までです。不要な旅程を削除してください。`);break}
+      let n;if(d.act==='new-plan')n=blank();else if(d.act==='add-sample')n=sample();
+      else{n=normalize(JSON.parse(JSON.stringify(lib.find(x=>x.id===d.id))));n.id=uid();n.title=(n.title||'旅程')+'（コピー）';n.updated=Date.now()}
+      lib.push(n);curId=n.id;ui.msg=null;save();ui.tab=d.act==='new-plan'?'basic':'library';store(K_TAB,ui.tab);render();break}
+    case'open-plan':curId=d.id;ui.editing=null;ui.msg=null;save();ui.tab='schedule';store(K_TAB,'schedule');render();break;
+    case'ask-del':ui.confirmDel=d.id;render();break;
+    case'cancel-del':ui.confirmDel=null;render();break;
+    case'del-plan':lib=lib.filter(x=>x.id!==d.id);if(!lib.length)lib=[blank()];if(!lib.some(x=>x.id===curId))curId=[...lib].sort((a,b)=>b.updated-a.updated)[0].id;ui.confirmDel=null;save();render();break;
+    case'save-cur':case'save-all':saveJson(d.act==='save-all',b);break;
+    case'export-cur':ui.exportText=JSON.stringify(p,null,2);ui.msg=null;render();break;
+    case'export-all':ui.exportText=JSON.stringify({app:'tabi-shiori',plans:lib,presets},null,2);ui.msg=null;render();break;
+    case'copy':{const box=document.getElementById('exportBox');
+      const fallback=()=>{box.focus();box.select();ui.msg={where:'export',type:'ok',text:'テキストを選択しました。Ctrl+C（⌘+C）でコピーしてください。'};const m=document.createElement('p');m.className='msg ok';m.textContent=ui.msg.text;box.after(m)};
+      try{navigator.clipboard.writeText(ui.exportText).then(()=>msg('export','ok','コピーしました。'),fallback)}catch(err){fallback()}break}
+    case'import':{const txt=document.getElementById('importBox').value.trim();if(!txt){msg('import','err','ファイルを選ぶか、テキストを貼り付けてください。');break}importText(txt);break}
+  }
+});
+render();
+})();
+</script>
+</body>
+</html>
