@@ -67,6 +67,9 @@ input[type=text],input[type=date],input[type=time],input[type=number],input[type
   width:100%;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:15px}
 textarea{resize:vertical;min-height:80px}
 input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box-shadow:0 0 0 3px var(--sea-soft)}
+.date-row{display:flex;gap:6px;align-items:center;min-width:0}
+.date-row input{flex:1}
+.date-row .btn{flex:none;padding-block:7px}
 .static{padding:8px 0;font-size:15px;color:var(--ink);font-weight:700}
 
 .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px;font-weight:500}
@@ -239,6 +242,9 @@ function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'
 function md(s){const d=parseD(s);return d?`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`:''}
 function ymd(s){const d=parseD(s);return d?d.getFullYear()+'/'+md(s):''}
 function range(d){if(!d.length)return'';const a=d[0],b=d[d.length-1];if(d.length===1)return ymd(a);return ymd(a)+' – '+(a.slice(0,4)===b.slice(0,4)?md(b):ymd(b))}
+const todayIso=()=>iso(new Date());
+const todayBtn=id=>`<button type="button" class="btn sm" data-act="today" data-for="${id}">本日</button>`;
+function setDate(el,v){if(!el||el.value===v)return;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}
 function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:''}
 
 function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',memo:'',
@@ -363,8 +369,8 @@ function library(){
 function basic(p){
   return`<section class="card"><div class="sec-head"><h2>基本情報</h2></div><div class="grid" style="margin-top:12px">
   <label class="f full">旅行タイトル<input id="b-title" type="text" data-f="title" value="${esc(p.title)}" placeholder="例：北海道 夏休み家族旅行"></label>
-  <label class="f">出発日<input id="b-start" type="date" data-f="start" value="${esc(p.start)}"></label>
-  <label class="f">帰着日<input id="b-end" type="date" data-f="end" value="${esc(p.end)}"></label>
+  <label class="f">出発日<span class="date-row"><input id="b-start" type="date" data-f="start" value="${esc(p.start)}">${todayBtn('b-start')}</span></label>
+  <label class="f">帰着日<span class="date-row"><input id="b-end" type="date" data-f="end" data-default-from="b-start" value="${esc(p.end)}">${todayBtn('b-end')}</span></label>
   <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)">旅行日数<span class="static" id="nights">${nightsText(p)||'—'}</span></div>
   <label class="f">目的地・行き先<input id="b-dest" type="text" data-f="dest" value="${esc(p.dest)}" placeholder="例：札幌・小樽"></label>
   <label class="f">参加者<input id="b-mem" type="text" data-f="members" value="${esc(p.members)}" placeholder="例：4名（家族）"></label>
@@ -495,7 +501,9 @@ function fxOut(p){
 /* 名簿・緊急 */
 function people(p){
   const f=(r,k,type,ph)=>`<input id="ro-${k}-${r.id}" type="${type}" data-l="roster" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}">`;
-  const g=(obj,k,label,type='text')=>`<label class="f">${label}<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}" value="${esc(plan()[obj][k])}"></label>`;
+  const g=(obj,k,label,type='text')=>{
+    const inp=`<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}"${obj==='ins'&&k==='to'?' data-default-from="ins-from"':''} value="${esc(plan()[obj][k])}">`;
+    return`<label class="f">${label}${type==='date'?`<span class="date-row">${inp}${todayBtn(obj+'-'+k)}</span>`:inp}</label>`};
   return`<p class="note">名簿・保険・緊急連絡先は個人情報です。しおりには、表示を選んだときだけ載ります。データ書き出しのJSONには含まれます。</p>
   <section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>名簿</h2><span class="hint">${p.roster.length}名</span></div>
   <div class="rows"><div class="row r-ros row-head"><span>氏名</span><span>電話番号</span><span>メールアドレス</span><span>緊急連絡先</span><span>メモ</span><span></span></div>
@@ -668,6 +676,11 @@ document.addEventListener('change',e=>{
   if(t.id==='importFile'){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importText(String(r.result));r.readAsText(f);return}
   if(t.type==='checkbox'||t.tagName==='SELECT'||t.hasAttribute('data-re'))onEdit(e);
 });
+// 空の日付欄を開いたら今日（帰着日・保険終了日は開始側の日付）を初期値にする
+document.addEventListener('focusin',e=>{
+  const t=e.target;if(t.type!=='date'||t.value||!t.dataset.f)return;
+  const src=t.dataset.defaultFrom&&document.getElementById(t.dataset.defaultFrom);
+  setDate(t,(src&&src.value)||todayIso())});
 function addPreset(k){
   const p=plan(),pre=presets.find(x=>x.id===k);if(!pre)return;const list=pre.items;
   const have=new Set(p.packing.map(r=>r.name.trim()));
@@ -688,6 +701,7 @@ document.addEventListener('click',e=>{
   switch(d.act){
     case'close-edit':ui.editing=null;render();break;
     case'pdf':exportPdf(b);break;
+    case'today':{const el=document.getElementById(d.for);setDate(el,todayIso());if(el)el.focus();break}
     case'clear-checked':p.packing=p.packing.filter(r=>!r.checked);touch();render();break;
     case'preset-toggle':ui.presetOpen=!ui.presetOpen;ui.presetConfirm=null;render();break;
     case'preset-pick':ui.presetEdit=d.id;ui.presetConfirm=null;render();break;
