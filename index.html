@@ -725,9 +725,17 @@ function dpOpen(input){
   if(!dp.el){dp.el=document.createElement('div');dp.el.className='dp-pop no-print';dp.el.setAttribute('role','dialog');dp.el.setAttribute('aria-label','日付を選ぶ');
     // カレンダー内を押しても入力欄からフォーカスを外さない（途中で再描画されてクリックが失われるのを防ぐ）
     dp.el.addEventListener('mousedown',e=>e.preventDefault());
+    // ボタンを離した時点で操作する（環境によってclickが届かなくても確実に反映・クローズする）
+    dp.el.addEventListener('pointerup',e=>{if(e.button!==0)return;const b=e.target.closest('button[data-act]');if(!b)return;dp.skipUntil=Date.now()+600;dpAction(b)});
     document.body.appendChild(dp.el)}
   dp.el.hidden=false;dpDraw();dpPlace()}
 function dpClose(){if(dp.el)dp.el.hidden=true;dp.input=null}
+function dpAction(b){
+  const d=b.dataset;
+  if(d.act==='dp-move'){const n=new Date(dp.y,dp.m+Number(d.n),1);dp.y=n.getFullYear();dp.m=n.getMonth();dpDraw();return}
+  if(d.act!=='dp-pick'&&d.act!=='dp-today'&&d.act!=='dp-clear')return;
+  const el=dp.input;dpClose();if(!el)return;   // 先に閉じる
+  try{commitDate(el,d.act==='dp-pick'?d.date:d.act==='dp-today'?todayIso():'')}finally{el.focus()}}
 function dpDraw(){
   const sel=parseInput(dp.input.value),t=todayIso(),first=new Date(dp.y,dp.m,1),start=new Date(dp.y,dp.m,1-first.getDay());
   let cells='';
@@ -766,9 +774,9 @@ document.addEventListener('click',e=>{
     case'close-edit':ui.editing=null;render();break;
     case'pdf':exportPdf(b);break;
     case'dp-open':{const el=document.getElementById(d.for);if(dpIsOpen()&&dp.input===el)dpClose();else if(el)dpOpen(el);break}
-    case'dp-move':{const n=new Date(dp.y,dp.m+Number(d.n),1);dp.y=n.getFullYear();dp.m=n.getMonth();dpDraw();break}
-    case'dp-pick':case'dp-today':case'dp-clear':{const el=dp.input;if(!el)break;
-      commitDate(el,d.act==='dp-pick'?d.date:d.act==='dp-today'?todayIso():'');dpClose();el.focus();break}
+    case'dp-move':case'dp-pick':case'dp-today':case'dp-clear':
+      if(Date.now()<(dp.skipUntil||0))break;   // pointerupで処理済み（キーボード操作はこちらで処理）
+      dpAction(b);break;
     case'clear-checked':p.packing=p.packing.filter(r=>!r.checked);touch();render();break;
     case'preset-toggle':ui.presetOpen=!ui.presetOpen;ui.presetConfirm=null;render();break;
     case'preset-pick':ui.presetEdit=d.id;ui.presetConfirm=null;render();break;
