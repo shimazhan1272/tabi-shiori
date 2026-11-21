@@ -695,12 +695,17 @@ function onEdit(e){
     const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
     document.getElementById('packCount').textContent=`${done} / ${n}`;document.getElementById('packBar').style.width=(n?done/n*100:0)+'%'}
 }
-document.addEventListener('input',e=>{if(e.target.type==='checkbox'||e.target.tagName==='SELECT')return;onEdit(e)});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  // 日付を手入力している間は、開いているカレンダーをその日付に合わせる（確定は欄を離れたとき）
+  if(t.dataset&&t.dataset.df!==undefined){if(dpIsOpen()&&dp.input===t){const d=parseD(parseInput(t.value));if(d){dp.y=d.getFullYear();dp.m=d.getMonth();dpDraw()}}return}
+  if(t.type==='checkbox'||t.tagName==='SELECT')return;onEdit(e)});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.df!==undefined){const v=parseInput(t.value);
+    if(v===(getPath(plan(),t.dataset.df)||''))return;
     if(v===null)t.value=fmtD(getPath(plan(),t.dataset.df));else commitDate(t,v);
-    if(dpIsOpen()&&dp.input===t){const d=parseD(parseInput(t.value));if(d){dp.y=d.getFullYear();dp.m=d.getMonth()}dpDraw()}return}
+    return}
   if(t.id==='presetSel'){addPreset(t.value);return}
   if(t.id==='importFile'){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importText(String(r.result));r.readAsText(f);return}
   if(t.type==='checkbox'||t.tagName==='SELECT'||t.hasAttribute('data-re'))onEdit(e);
@@ -717,7 +722,10 @@ function dpOpen(input){
     const src=input.dataset.defaultFrom&&document.getElementById(input.dataset.defaultFrom);
     commitDate(input,(src&&parseInput(src.value))||todayIso())}
   const cur=parseD(parseInput(input.value));dp.input=input;dp.y=cur.getFullYear();dp.m=cur.getMonth();
-  if(!dp.el){dp.el=document.createElement('div');dp.el.className='dp-pop no-print';dp.el.setAttribute('role','dialog');dp.el.setAttribute('aria-label','日付を選ぶ');document.body.appendChild(dp.el)}
+  if(!dp.el){dp.el=document.createElement('div');dp.el.className='dp-pop no-print';dp.el.setAttribute('role','dialog');dp.el.setAttribute('aria-label','日付を選ぶ');
+    // カレンダー内を押しても入力欄からフォーカスを外さない（途中で再描画されてクリックが失われるのを防ぐ）
+    dp.el.addEventListener('mousedown',e=>e.preventDefault());
+    document.body.appendChild(dp.el)}
   dp.el.hidden=false;dpDraw();dpPlace()}
 function dpClose(){if(dp.el)dp.el.hidden=true;dp.input=null}
 function dpDraw(){
