@@ -14,6 +14,7 @@
   --paper:#f4f6f3; --card:#ffffff; --ink:#1d2733; --muted:#5b6975; --line:#d8dee1;
   --sea:#0d7480; --sea-ink:#ffffff; --sea-soft:#e0eff0; --sun:#c98612; --danger:#b83b28;
   --c-sight:#0d7480; --c-food:#c98612; --c-stay:#6a5bb5; --c-move:#55626d; --c-shop:#bf4f7a; --c-other:#8a8f6a;
+  --sunday:#c8423a; --saturday:#2b67c9;
   --f-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -22,12 +23,12 @@
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
   color-scheme:dark; }
 
 *{box-sizing:border-box}
@@ -101,6 +102,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 .chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;color:var(--cat);background:color-mix(in srgb,var(--cat) 14%,transparent)}
 .chip.mv{--cat:var(--c-move);font-weight:500}
 .cat-sight{--cat:var(--c-sight)} .cat-food{--cat:var(--c-food)} .cat-stay{--cat:var(--c-stay)}
+.date-wrap{position:relative;display:block;container-type:inline-size}
+.date-wrap .wd{position:absolute;right:40px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:700;color:var(--muted);pointer-events:none}
+.date-wrap .wd.sun{color:var(--sunday)} .date-wrap .wd.sat{color:var(--saturday)}
+@container (max-width:210px){.date-wrap .wd{right:34px;font-size:12px}}
 .cat-move{--cat:var(--c-move)} .cat-shop{--cat:var(--c-shop)} .cat-other{--cat:var(--c-other)}
 .editor{border:1px solid var(--sea);border-radius:var(--r);background:var(--sea-soft);padding:14px;margin:8px 0;display:flex;flex-direction:column;gap:12px}
 .editor input,.editor select,.editor textarea{background:var(--card)}
@@ -241,6 +246,10 @@ function ymd(s){const d=parseD(s);return d?d.getFullYear()+'/'+md(s):''}
 function range(d){if(!d.length)return'';const a=d[0],b=d[d.length-1];if(d.length===1)return ymd(a);return ymd(a)+' – '+(a.slice(0,4)===b.slice(0,4)?md(b):ymd(b))}
 const todayIso=()=>iso(new Date());
 function setDate(el,v){if(!el||el.value===v)return;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}
+// 日付欄の右側に曜日を重ねて表示（土曜は青・日曜は赤）
+const wdClass=d=>'wd'+(d&&d.getDay()===0?' sun':d&&d.getDay()===6?' sat':'');
+const dateWrap=(inputHtml,v)=>{const d=parseD(v);return`<span class="date-wrap">${inputHtml}<span class="${wdClass(d)}" aria-hidden="true">${d?`(${WD[d.getDay()]})`:''}</span></span>`};
+function updWd(t){const w=t.parentElement&&t.parentElement.querySelector('.wd');if(!w)return;const d=parseD(t.value);w.textContent=d?`(${WD[d.getDay()]})`:'';w.className=wdClass(d)}
 function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:''}
 
 function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',memo:'',
@@ -365,8 +374,8 @@ function library(){
 function basic(p){
   return`<section class="card"><div class="sec-head"><h2>基本情報</h2></div><div class="grid" style="margin-top:12px">
   <label class="f full">旅行タイトル<input id="b-title" type="text" data-f="title" value="${esc(p.title)}" placeholder="例：北海道 夏休み家族旅行"></label>
-  <label class="f">出発日<input id="b-start" type="date" data-f="start" value="${esc(p.start)}"></label>
-  <label class="f">帰着日<input id="b-end" type="date" data-f="end" data-default-from="b-start" value="${esc(p.end)}"></label>
+  <label class="f">出発日${dateWrap(`<input id="b-start" type="date" data-f="start" value="${esc(p.start)}">`,p.start)}</label>
+  <label class="f">帰着日${dateWrap(`<input id="b-end" type="date" data-f="end" data-default-from="b-start" value="${esc(p.end)}">`,p.end)}</label>
   <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)">旅行日数<span class="static" id="nights">${nightsText(p)||'—'}</span></div>
   <label class="f">目的地・行き先<input id="b-dest" type="text" data-f="dest" value="${esc(p.dest)}" placeholder="例：札幌・小樽"></label>
   <label class="f">参加者<input id="b-mem" type="text" data-f="members" value="${esc(p.members)}" placeholder="例：4名（家族）"></label>
@@ -499,7 +508,7 @@ function people(p){
   const f=(r,k,type,ph)=>`<input id="ro-${k}-${r.id}" type="${type}" data-l="roster" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}">`;
   const g=(obj,k,label,type='text')=>{
     const inp=`<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}"${obj==='ins'&&k==='to'?' data-default-from="ins-from"':''} value="${esc(plan()[obj][k])}">`;
-    return`<label class="f">${label}${inp}</label>`};
+    return`<label class="f">${label}${type==='date'?dateWrap(inp,plan()[obj][k]):inp}</label>`};
   return`<p class="note">名簿・保険・緊急連絡先は個人情報です。しおりには、表示を選んだときだけ載ります。データ書き出しのJSONには含まれます。</p>
   <section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>名簿</h2><span class="hint">${p.roster.length}名</span></div>
   <div class="rows"><div class="row r-ros row-head"><span>氏名</span><span>電話番号</span><span>メールアドレス</span><span>緊急連絡先</span><span>メモ</span><span></span></div>
@@ -665,7 +674,7 @@ function onEdit(e){
     const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
     document.getElementById('packCount').textContent=`${done} / ${n}`;document.getElementById('packBar').style.width=(n?done/n*100:0)+'%'}
 }
-document.addEventListener('input',e=>{if(e.target.type==='checkbox'||e.target.tagName==='SELECT')return;onEdit(e)});
+document.addEventListener('input',e=>{if(e.target.type==='date')updWd(e.target);if(e.target.type==='checkbox'||e.target.tagName==='SELECT')return;onEdit(e)});
 document.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='presetSel'){addPreset(t.value);return}
