@@ -14,7 +14,6 @@
   --paper:#f4f6f3; --card:#ffffff; --ink:#1d2733; --muted:#5b6975; --line:#d8dee1;
   --sea:#0d7480; --sea-ink:#ffffff; --sea-soft:#e0eff0; --sun:#c98612; --danger:#b83b28;
   --c-sight:#0d7480; --c-food:#c98612; --c-stay:#6a5bb5; --c-move:#55626d; --c-shop:#bf4f7a; --c-other:#8a8f6a;
-  --sunday:#c8423a; --saturday:#2b67c9;
   --f-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -23,12 +22,12 @@
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191;
   color-scheme:dark; }
 
 *{box-sizing:border-box}
@@ -68,26 +67,9 @@ input[type=text],input[type=date],input[type=time],input[type=number],input[type
   width:100%;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:15px}
 textarea{resize:vertical;min-height:80px}
 input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box-shadow:0 0 0 3px var(--sea-soft)}
-/* calendar */
-.dp-field{position:relative;display:block}
-.dp-field input{padding-right:40px}
-.dp-ico{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;border:0;background:none;color:var(--muted);padding:6px;border-radius:6px;cursor:pointer}
-.dp-ico:hover{color:var(--sea)}
-.dp-pop{position:absolute;z-index:50;width:300px;max-width:calc(100vw - 16px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:12px;display:flex;flex-direction:column;gap:8px}
-.dp-head{display:flex;align-items:center;gap:2px}
-.dp-title{flex:1;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
-.dp-nav{border:0;background:none;color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:6px;cursor:pointer}
-.dp-nav:hover{background:var(--sea-soft);color:var(--ink)}
-.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
-.dp-wd{font-size:12px;color:var(--muted);padding:4px 0;font-weight:700}
-.dp-day{border:0;background:none;height:36px;border-radius:8px;cursor:pointer;font-family:var(--f-mono);font-size:14px;color:var(--ink)}
-.dp-day:hover{background:var(--sea-soft)}
-.dp-wd.sun,.dp-day.sun{color:var(--sunday)}
-.dp-wd.sat,.dp-day.sat{color:var(--saturday)}
-.dp-day.out{opacity:.4}
-.dp-day.today{box-shadow:inset 0 0 0 2px var(--sea)}
-.dp-day.sel{background:var(--sea);color:var(--sea-ink);font-weight:700;opacity:1}
-.dp-foot{display:flex;justify-content:space-between;padding-top:4px;border-top:1px solid var(--line)}
+.date-row{display:flex;gap:6px;align-items:center;min-width:0}
+.date-row input{flex:1}
+.date-row .btn{flex:none;padding-block:7px}
 .static{padding:8px 0;font-size:15px;color:var(--ink);font-weight:700}
 
 .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:14px;font-weight:500}
@@ -261,15 +243,8 @@ function md(s){const d=parseD(s);return d?`${d.getMonth()+1}/${d.getDate()}(${WD
 function ymd(s){const d=parseD(s);return d?d.getFullYear()+'/'+md(s):''}
 function range(d){if(!d.length)return'';const a=d[0],b=d[d.length-1];if(d.length===1)return ymd(a);return ymd(a)+' – '+(a.slice(0,4)===b.slice(0,4)?md(b):ymd(b))}
 const todayIso=()=>iso(new Date());
-const pad2=n=>String(n).padStart(2,'0');
-const fmtD=s=>{const d=parseD(s);return d?`${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`:''};
-function parseInput(v){v=String(v||'').trim();if(!v)return'';
-  const m=/^(\d{4})\D(\d{1,2})\D(\d{1,2})$/.exec(v)||/^(\d{4})(\d{2})(\d{2})$/.exec(v);if(!m)return null;
-  const d=new Date(+m[1],+m[2]-1,+m[3]);return d.getMonth()===+m[2]-1?iso(d):null}
-const getPath=(o,p)=>p.split('.').reduce((a,k)=>a&&a[k],o);
-const CAL_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
-function dateField(id,path,defFrom){
-  return`<span class="dp-field"><input id="${id}" type="text" inputmode="numeric" autocomplete="off" placeholder="yyyy/mm/dd" data-df="${path}"${defFrom?` data-default-from="${defFrom}"`:''} value="${esc(fmtD(getPath(plan(),path)))}"><button type="button" class="dp-ico" data-act="dp-open" data-for="${id}" aria-label="カレンダーを開く">${CAL_SVG}</button></span>`}
+const todayBtn=id=>`<button type="button" class="btn sm" data-act="today" data-for="${id}">本日</button>`;
+function setDate(el,v){if(!el||el.value===v)return;el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}
 function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:''}
 
 function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',memo:'',
@@ -355,7 +330,6 @@ function totals(p){
 const TABS=[['library','旅程一覧'],['basic','基本情報'],['schedule','旅程'],['packing','持ち物'],['souvenir','おみやげ'],['cost','費用'],['people','名簿・緊急'],['shiori','しおり'],['data','データ']];
 
 function render(){
-  dpClose();
   const p=plan();
   document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
   renderSub();
@@ -395,8 +369,8 @@ function library(){
 function basic(p){
   return`<section class="card"><div class="sec-head"><h2>基本情報</h2></div><div class="grid" style="margin-top:12px">
   <label class="f full">旅行タイトル<input id="b-title" type="text" data-f="title" value="${esc(p.title)}" placeholder="例：北海道 夏休み家族旅行"></label>
-  <label class="f">出発日${dateField('b-start','start')}</label>
-  <label class="f">帰着日${dateField('b-end','end','b-start')}</label>
+  <label class="f">出発日<span class="date-row"><input id="b-start" type="date" data-f="start" value="${esc(p.start)}">${todayBtn('b-start')}</span></label>
+  <label class="f">帰着日<span class="date-row"><input id="b-end" type="date" data-f="end" data-default-from="b-start" value="${esc(p.end)}">${todayBtn('b-end')}</span></label>
   <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)">旅行日数<span class="static" id="nights">${nightsText(p)||'—'}</span></div>
   <label class="f">目的地・行き先<input id="b-dest" type="text" data-f="dest" value="${esc(p.dest)}" placeholder="例：札幌・小樽"></label>
   <label class="f">参加者<input id="b-mem" type="text" data-f="members" value="${esc(p.members)}" placeholder="例：4名（家族）"></label>
@@ -527,9 +501,9 @@ function fxOut(p){
 /* 名簿・緊急 */
 function people(p){
   const f=(r,k,type,ph)=>`<input id="ro-${k}-${r.id}" type="${type}" data-l="roster" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}">`;
-  const g=(obj,k,label,type='text')=>`<label class="f">${label}${type==='date'
-    ?dateField(`${obj}-${k}`,`${obj}.${k}`,obj==='ins'&&k==='to'?'ins-from':'')
-    :`<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}" value="${esc(plan()[obj][k])}">`}</label>`;
+  const g=(obj,k,label,type='text')=>{
+    const inp=`<input id="${obj}-${k}" type="${type}" data-f="${obj}.${k}"${obj==='ins'&&k==='to'?' data-default-from="ins-from"':''} value="${esc(plan()[obj][k])}">`;
+    return`<label class="f">${label}${type==='date'?`<span class="date-row">${inp}${todayBtn(obj+'-'+k)}</span>`:inp}</label>`};
   return`<p class="note">名簿・保険・緊急連絡先は個人情報です。しおりには、表示を選んだときだけ載ります。データ書き出しのJSONには含まれます。</p>
   <section class="card" style="display:flex;flex-direction:column;gap:12px"><div class="sec-head"><h2>名簿</h2><span class="hint">${p.roster.length}名</span></div>
   <div class="rows"><div class="row r-ros row-head"><span>氏名</span><span>電話番号</span><span>メールアドレス</span><span>緊急連絡先</span><span>メモ</span><span></span></div>
@@ -695,69 +669,23 @@ function onEdit(e){
     const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
     document.getElementById('packCount').textContent=`${done} / ${n}`;document.getElementById('packBar').style.width=(n?done/n*100:0)+'%'}
 }
-document.addEventListener('input',e=>{
-  const t=e.target;
-  // 日付を手入力している間は、開いているカレンダーをその日付に合わせる（確定は欄を離れたとき）
-  if(t.dataset&&t.dataset.df!==undefined){if(dpIsOpen()&&dp.input===t){const d=parseD(parseInput(t.value));if(d){dp.y=d.getFullYear();dp.m=d.getMonth();dpDraw()}}return}
-  if(t.type==='checkbox'||t.tagName==='SELECT')return;onEdit(e)});
+document.addEventListener('input',e=>{if(e.target.type==='checkbox'||e.target.tagName==='SELECT')return;onEdit(e)});
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.dataset.df!==undefined){const v=parseInput(t.value);
-    if(v===(getPath(plan(),t.dataset.df)||''))return;
-    if(v===null)t.value=fmtD(getPath(plan(),t.dataset.df));else commitDate(t,v);
-    return}
   if(t.id==='presetSel'){addPreset(t.value);return}
   if(t.id==='importFile'){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importText(String(r.result));r.readAsText(f);return}
   if(t.type==='checkbox'||t.tagName==='SELECT'||t.hasAttribute('data-re'))onEdit(e);
 });
-/* ---------- カレンダー（日付選択） ---------- */
-const dp={el:null,input:null,y:0,m:0};
-function commitDate(el,v){
-  setPath(plan(),el.dataset.df,v);el.value=fmtD(v);touch();renderSub();
-  const ne=document.getElementById('nights');if(ne)ne.textContent=nightsText(plan())||'—'}
-function dpIsOpen(){return dp.el&&!dp.el.hidden}
-function dpOpen(input){
-  // 空の欄を開いたら今日（帰着日・保険終了日は開始側の日付）を入れる
-  if(!parseInput(input.value)){
-    const src=input.dataset.defaultFrom&&document.getElementById(input.dataset.defaultFrom);
-    commitDate(input,(src&&parseInput(src.value))||todayIso())}
-  const cur=parseD(parseInput(input.value));dp.input=input;dp.y=cur.getFullYear();dp.m=cur.getMonth();
-  if(!dp.el){dp.el=document.createElement('div');dp.el.className='dp-pop no-print';dp.el.setAttribute('role','dialog');dp.el.setAttribute('aria-label','日付を選ぶ');
-    // カレンダー内を押しても入力欄からフォーカスを外さない（途中で再描画されてクリックが失われるのを防ぐ）
-    dp.el.addEventListener('mousedown',e=>e.preventDefault());
-    // ボタンを離した時点で操作する（環境によってclickが届かなくても確実に反映・クローズする）
-    dp.el.addEventListener('pointerup',e=>{if(e.button!==0)return;const b=e.target.closest('button[data-act]');if(!b)return;dp.skipUntil=Date.now()+600;dpAction(b)});
-    document.body.appendChild(dp.el)}
-  dp.el.hidden=false;dpDraw();dpPlace()}
-function dpClose(){if(dp.el)dp.el.hidden=true;dp.input=null}
-function dpAction(b){
-  const d=b.dataset;
-  if(d.act==='dp-move'){const n=new Date(dp.y,dp.m+Number(d.n),1);dp.y=n.getFullYear();dp.m=n.getMonth();dpDraw();return}
-  if(d.act!=='dp-pick'&&d.act!=='dp-today'&&d.act!=='dp-clear')return;
-  const el=dp.input;dpClose();if(!el)return;   // 先に閉じる
-  try{commitDate(el,d.act==='dp-pick'?d.date:d.act==='dp-today'?todayIso():'')}finally{el.focus()}}
-function dpDraw(){
-  const sel=parseInput(dp.input.value),t=todayIso(),first=new Date(dp.y,dp.m,1),start=new Date(dp.y,dp.m,1-first.getDay());
-  let cells='';
-  for(let i=0;i<42;i++){const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),s=iso(d),w=d.getDay();
-    cells+=`<button type="button" class="dp-day${d.getMonth()!==dp.m?' out':''}${w===0?' sun':w===6?' sat':''}${s===t?' today':''}${s===sel?' sel':''}" data-act="dp-pick" data-date="${s}" aria-label="${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日"${s===sel?' aria-pressed="true"':''}>${d.getDate()}</button>`}
-  const nav=(n,l,ch)=>`<button type="button" class="dp-nav" data-act="dp-move" data-n="${n}" aria-label="${l}">${ch}</button>`;
-  dp.el.innerHTML=`<div class="dp-head">${nav(-12,'前の年','«')}${nav(-1,'前の月','‹')}<span class="dp-title">${dp.y}年${dp.m+1}月</span>${nav(1,'次の月','›')}${nav(12,'次の年','»')}</div>
-  <div class="dp-grid">${WD.map((w,i)=>`<span class="dp-wd${i===0?' sun':i===6?' sat':''}">${w}</span>`).join('')}${cells}</div>
-  <div class="dp-foot"><button type="button" class="btn sm" data-act="dp-clear">消去</button><button type="button" class="btn sm pri" data-act="dp-today">本日</button></div>`}
-function dpPlace(){
-  const r=dp.input.getBoundingClientRect(),w=dp.el.offsetWidth;
-  const left=Math.min(Math.max(8,r.left),document.documentElement.clientWidth-w-8);
-  dp.el.style.left=(left+window.scrollX)+'px';dp.el.style.top=(r.bottom+window.scrollY+6)+'px'}
-document.addEventListener('mousedown',e=>{if(dpIsOpen()&&!dp.el.contains(e.target)&&e.target!==dp.input&&!e.target.closest('.dp-ico'))dpClose()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&dpIsOpen()){const i=dp.input;dpClose();if(i)i.focus()}});
-window.addEventListener('resize',()=>{if(dpIsOpen())dpPlace()});
+// 空の日付欄を開いたら今日（帰着日・保険終了日は開始側の日付）を初期値にする
+document.addEventListener('focusin',e=>{
+  const t=e.target;if(t.type!=='date'||t.value||!t.dataset.f)return;
+  const src=t.dataset.defaultFrom&&document.getElementById(t.dataset.defaultFrom);
+  setDate(t,(src&&src.value)||todayIso())});
 function addPreset(k){
   const p=plan(),pre=presets.find(x=>x.id===k);if(!pre)return;const list=pre.items;
   const have=new Set(p.packing.map(r=>r.name.trim()));
   list.forEach(name=>{if(!have.has(name))p.packing.push({id:uid(),name,checked:false})});touch();render()}
 document.addEventListener('click',e=>{
-  const di=e.target.closest('input[data-df]');if(di){if(!(dpIsOpen()&&dp.input===di))dpOpen(di);return}
   const b=e.target.closest('button');if(!b)return;const p=plan(),d=b.dataset;
   if(d.tab){ui.tab=d.tab;ui.editing=null;ui.confirmDel=null;ui.msg=null;store(K_TAB,d.tab);render();window.scrollTo({top:0});return}
   if(d.edit){ui.editing=d.edit;render();const el=document.getElementById('e-title-'+d.edit);if(el)el.focus();return}
@@ -773,10 +701,7 @@ document.addEventListener('click',e=>{
   switch(d.act){
     case'close-edit':ui.editing=null;render();break;
     case'pdf':exportPdf(b);break;
-    case'dp-open':{const el=document.getElementById(d.for);if(dpIsOpen()&&dp.input===el)dpClose();else if(el)dpOpen(el);break}
-    case'dp-move':case'dp-pick':case'dp-today':case'dp-clear':
-      if(Date.now()<(dp.skipUntil||0))break;   // pointerupで処理済み（キーボード操作はこちらで処理）
-      dpAction(b);break;
+    case'today':{const el=document.getElementById(d.for);setDate(el,todayIso());if(el)el.focus();break}
     case'clear-checked':p.packing=p.packing.filter(r=>!r.checked);touch();render();break;
     case'preset-toggle':ui.presetOpen=!ui.presetOpen;ui.presetConfirm=null;render();break;
     case'preset-pick':ui.presetEdit=d.id;ui.presetConfirm=null;render();break;
