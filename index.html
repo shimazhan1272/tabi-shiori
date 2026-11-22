@@ -275,8 +275,9 @@ function days(p){
   return out}
 /* 食事枠：各日に朝・昼・夜ごはんの予定を自動で用意する。一度用意した日は mealDays に記録し、消した枠は戻さない */
 const MEALS=[['朝ごはん','08:00'],['昼ごはん','12:00'],['夜ごはん','19:00']];
-const mealItem=(date,[title,time])=>({id:uid(),date,time,endTime:'',title,cat:'food',transport:'',place:'',cost:'',url:'',memo:'',autoMeal:true});
-const untouchedMeal=r=>r.autoMeal&&r.cat==='food'&&MEALS.some(m=>m[0]===r.title&&m[1]===r.time)&&!r.endTime&&!r.place&&!num(r.cost)&&!r.url&&!r.memo&&!r.transport;
+const MEAL_COST='1000';   // 食事枠の金額（円）の初期値
+const mealItem=(date,[title,time])=>({id:uid(),date,time,endTime:'',title,cat:'food',transport:'',place:'',cost:MEAL_COST,url:'',memo:'',autoMeal:true});
+const untouchedMeal=r=>r.autoMeal&&r.cat==='food'&&MEALS.some(m=>m[0]===r.title&&m[1]===r.time)&&!r.endTime&&!r.place&&(!num(r.cost)||String(r.cost)===MEAL_COST)&&!r.url&&!r.memo&&!r.transport;
 const missingMeals=(p,date)=>MEALS.filter(m=>!p.items.some(r=>r.date===date&&r.title===m[0]));
 function ensureMeals(p){
   const d=days(p),n0=p.items.length,m0=p.mealDays.length;
