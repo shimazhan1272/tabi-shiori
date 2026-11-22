@@ -93,6 +93,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 .ev{display:grid;grid-template-columns:62px 18px minmax(0,1fr) auto;gap:0 10px;padding:10px 0;border-bottom:1px dashed var(--line);align-items:start}
 .ev-time{font-family:var(--f-mono);font-size:15px;text-align:right;line-height:1.35;padding-top:1px}
 .ev-time small{display:block;color:var(--muted);font-size:12px}
+.ev-time .carry-t{font-size:12px;color:var(--muted)}
+.chip.carry{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.ev.is-carry .ev-title{color:var(--muted)}
 .ev-dot{position:relative;align-self:stretch}
 .ev-dot::before{content:"";position:absolute;left:8px;top:-10px;bottom:-11px;width:2px;background:var(--line)}
 .ev-dot::after{content:"";position:absolute;left:3px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--cat);border:2px solid var(--card)}
@@ -383,15 +386,26 @@ function basic(p){
   </div></section>`}
 
 /* 旅程 */
+// 日付をまたぐ予定（終了時刻が開始時刻より前）は、翌日にも「前日から」として表示する
+const overnight=r=>!!(r.time&&r.endTime&&r.endTime<r.time);
+function nextIso(s){const d=parseD(s);if(!d)return'';d.setDate(d.getDate()+1);return iso(d)}
+function dayItems(p,date){
+  const carry=date?p.items.filter(r=>overnight(r)&&nextIso(r.date)===date).map(r=>({...r,carry:true})):[];
+  return[...sortItems(carry),...sortItems(p.items.filter(r=>r.date===date))]}
+const realItems=a=>a.filter(r=>!r.carry);
+function timeHtml(r,ph){
+  if(r.carry)return`<span class="carry-t">前日</span><small>〜${esc(r.endTime)}</small>`;
+  return`${esc(r.time||ph)}${r.endTime?`<small>〜${overnight(r)?'翌':''}${esc(r.endTime)}</small>`:''}`}
+const carryChip=r=>r.carry?'<span class="chip carry">前日から続く</span>':'';
 function sortItems(a){return[...a].sort((x,y)=>(x.time||'99')<(y.time||'99')?-1:(x.time||'99')>(y.time||'99')?1:0)}
 function schedule(p){
-  const d=days(p),groups=d.map((date,i)=>({date,label:`${i+1}日目`,items:sortItems(p.items.filter(r=>r.date===date))}));
+  const d=days(p),groups=d.map((date,i)=>({date,label:`${i+1}日目`,items:dayItems(p,date)}));
   const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));
   if(loose.length||!d.length)groups.push({date:'',label:'日付未設定',items:loose});
   const body=groups.map(g=>{
-    const sub=g.items.reduce((a,r)=>a+num(r.cost),0);
-    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span><span class="day-sum">${g.items.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
-    ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
+    const real=realItems(g.items),sub=real.reduce((a,r)=>a+num(r.cost),0);
+    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span><span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
+    ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
     <div><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button></div></div>`}).join('');
   return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
   <div class="sec-head"><h2>旅程</h2><span class="hint">旅程の合計 <b class="mono">${yen(totals(p).it)}</b></span></div>
@@ -399,11 +413,11 @@ function schedule(p){
   ${body}</section>`}
 function evRow(r){
   const url=safeUrl(r.url),cat=r.cat||'other';
-  const meta=[`<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>`];
+  const meta=[`<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>`];if(r.carry)meta.unshift(carryChip(r));
   if(r.transport)meta.push(`<span class="chip mv">${esc(r.transport)}</span>`);
   if(r.place)meta.push(`<span>${esc(r.place)}</span>`);
-  if(num(r.cost))meta.push(`<span class="mono">${yen(r.cost)}</span>`);
-  return`<li class="ev cat-${cat}"><div class="ev-time">${esc(r.time||'--:--')}${r.endTime?`<small>〜${esc(r.endTime)}</small>`:''}</div><div class="ev-dot"></div>
+  if(num(r.cost)&&!r.carry)meta.push(`<span class="mono">${yen(r.cost)}</span>`);
+  return`<li class="ev cat-${cat}${r.carry?' is-carry':''}"><div class="ev-time">${timeHtml(r,'--:--')}</div><div class="ev-dot"></div>
   <div style="min-width:0"><div class="ev-title">${esc(r.title||'（無題の予定）')}</div><div class="ev-meta">${meta.join('')}</div>
   ${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}${url?`<a class="ev-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>`:''}</div>
   <button class="btn sm" data-edit="${r.id}">編集</button></li>`}
@@ -524,11 +538,11 @@ function people(p){
 /* しおり */
 function shiori(p){
   const d=days(p),t=totals(p);
-  const groups=d.map((x,i)=>({label:`${i+1}日目`,date:x,items:sortItems(p.items.filter(r=>r.date===x))}));
+  const groups=d.map((x,i)=>({label:`${i+1}日目`,date:x,items:dayItems(p,x)}));
   const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));if(loose.length)groups.push({label:'日付未設定',date:'',items:loose});
   const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span></div>
-    ${g.items.map(r=>{const url=safeUrl(r.url),cat=r.cat||'other';return`<div class="b-ev ev cat-${cat}"><div class="ev-time">${esc(r.time||'')}${r.endTime?`<small>〜${esc(r.endTime)}</small>`:''}</div><div class="ev-dot"></div>
-      <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta"><span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
+    ${g.items.map(r=>{const url=safeUrl(r.url),cat=r.cat||'other';return`<div class="b-ev ev cat-${cat}${r.carry?' is-carry':''}"><div class="ev-time">${timeHtml(r,'')}</div><div class="ev-dot"></div>
+      <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta">${carryChip(r)}<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)&&!r.carry?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
       ${url?`<div class="qr" data-qr="${esc(url)}" title="${esc(url)}"></div>`:'<div></div>'}</div>`}).join('')||'<div class="empty-day">予定なし</div>'}</div>`).join('');
   const pk=p.packing.length?`<section class="b-sec"><h3>持ち物</h3><ul class="checks">${p.packing.map(r=>`<li class="${r.checked?'on':''}">${esc(r.name)}</li>`).join('')}</ul></section>`:'';
   const sv=p.souvenirs.length?`<section class="b-sec"><h3>おみやげ</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>品物</th><th>お店</th><th>誰に</th><th style="text-align:right">金額</th></tr></thead><tbody>${p.souvenirs.map(r=>`<tr><td>${esc(r.item)}</td><td>${esc(r.shop)}</td><td>${esc(r.to)}</td><td class="n">${yen(r.price)}</td></tr>`).join('')}</tbody></table></div></section>`:'';
