@@ -259,40 +259,50 @@ function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',mem
   items:[],packing:[],souvenirs:[],roster:[],
   ins:{company:'',policy:'',from:'',to:'',tel:'',memo:''},
   emg:{police:'',fire:'',hospital:'',embassy:'',other:''},
-  split:1,fx:{code:'USD',rate:150},mealDays:[],updated:Date.now()}}
+  split:1,fx:{code:'USD',rate:150},mealDays:[],stayDays:[],updated:Date.now()}}
 function normalize(p){
-  const hadMeals=!!(p&&Array.isArray(p.mealDays));
+  const hadMeals=!!(p&&Array.isArray(p.mealDays)),hadStay=!!(p&&Array.isArray(p.stayDays));
   const b=blank(),o=Object.assign(b,p&&typeof p==='object'?p:{});
   o.ins=Object.assign(blank().ins,o.ins||{});o.emg=Object.assign(blank().emg,o.emg||{});o.fx=Object.assign(blank().fx,o.fx||{});
   ['items','packing','souvenirs','roster'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];o[k]=o[k].filter(r=>r&&typeof r==='object');o[k].forEach(r=>{if(!r.id)r.id=uid()})});
   // 食事枠の機能より前に作った旅程は、今ある日には枠を足さない（以後に増えた日だけ足す）
   if(!hadMeals)o.mealDays=days(o);
+  if(!hadStay)o.stayDays=days(o);
   if(!o.id)o.id=uid();return o}
 function days(p){
   const s=parseD(p.start),e=parseD(p.end);if(!s)return[];
   const out=[],end=e&&e>=s?e:s;
   for(let d=new Date(s);d<=end&&out.length<31;d.setDate(d.getDate()+1))out.push(iso(d));
   return out}
-/* 食事枠：各日に朝・昼・夜ごはんの予定を自動で用意する。一度用意した日は mealDays に記録し、消した枠は戻さない */
-const MEALS=[['朝ごはん','08:00'],['昼ごはん','12:00'],['夜ごはん','19:00']];
-const MEAL_COST='1000';   // 食事枠の金額（円）の初期値
-const mealItem=(date,[title,time])=>({id:uid(),date,time,endTime:'',title,cat:'food',transport:'',place:'',cost:MEAL_COST,url:'',memo:'',autoMeal:true});
-const untouchedMeal=r=>r.autoMeal&&r.cat==='food'&&MEALS.some(m=>m[0]===r.title&&m[1]===r.time)&&!r.endTime&&!r.place&&(!num(r.cost)||String(r.cost)===MEAL_COST)&&!r.url&&!r.memo&&!r.transport;
-const missingMeals=(p,date)=>MEALS.filter(m=>!p.items.some(r=>r.date===date&&r.title===m[0]));
-function ensureMeals(p){
-  const d=days(p),n0=p.items.length,m0=p.mealDays.length;
-  p.items=p.items.filter(r=>!(untouchedMeal(r)&&!d.includes(r.date)));   // 期間から外れた日の手つかずの枠は片付ける
-  p.mealDays=p.mealDays.filter(x=>d.includes(x));
-  let added=false;
-  d.forEach(x=>{if(p.mealDays.includes(x))return;p.mealDays.push(x);missingMeals(p,x).forEach(m=>{p.items.push(mealItem(x,m));added=true})});
-  return added||p.items.length!==n0||p.mealDays.length!==m0}
+/* 初期の枠：各日に朝・昼・夜ごはん、泊まる日（最終日以外）にホテルの予定を自動で用意する。
+   一度用意した日は mealDays / stayDays に記録し、消した枠は勝手に戻さない */
+const SLOTS=[
+  {key:'breakfast',group:'meal',title:'朝ごはん',short:'朝',time:'08:00',cat:'food',cost:'1000'},
+  {key:'lunch',group:'meal',title:'昼ごはん',short:'昼',time:'12:00',cat:'food',cost:'1000'},
+  {key:'dinner',group:'meal',title:'夜ごはん',short:'夜',time:'19:00',cat:'food',cost:'1000'},
+  {key:'hotel',group:'stay',title:'ホテル',short:'ホテル',time:'21:00',cat:'stay',cost:'5000'}];
+const SLOT_TRACK={meal:'mealDays',stay:'stayDays'};
+const slotDays=(p,g)=>g==='stay'?days(p).slice(0,-1):days(p);   // ホテルは泊まる日だけ（帰着日・日帰りは除く）
+const slotItem=(date,sl)=>({id:uid(),date,time:sl.time,endTime:'',title:sl.title,cat:sl.cat,transport:'',place:'',cost:sl.cost,url:'',memo:'',slot:sl.key});
+const slotOf=r=>SLOTS.find(sl=>sl.key===r.slot)||(r.autoMeal?SLOTS.find(sl=>sl.title===r.title):null);
+const untouchedSlot=r=>{const sl=slotOf(r);return!!sl&&r.title===sl.title&&r.time===sl.time&&r.cat===sl.cat&&!r.endTime&&!r.place&&(!num(r.cost)||String(r.cost)===sl.cost)&&!r.url&&!r.memo&&!r.transport};
+const hasSlot=(p,date,sl)=>p.items.some(r=>r.date===date&&(r.slot===sl.key||r.title===sl.title||(sl.cat==='stay'&&r.cat==='stay')));
+const missingSlots=(p,date,g)=>SLOTS.filter(sl=>(!g||sl.group===g)&&slotDays(p,sl.group).includes(date)&&!hasSlot(p,date,sl));
+function ensureSlots(p){
+  const n0=p.items.length;let ch=false;
+  for(const[g,key]of Object.entries(SLOT_TRACK)){
+    const ok=slotDays(p,g);
+    p.items=p.items.filter(r=>{const sl=slotOf(r);return!(sl&&sl.group===g&&untouchedSlot(r)&&!ok.includes(r.date))});   // 対象外になった日の手つかずの枠は片付ける
+    const kept=p[key].filter(x=>ok.includes(x));if(kept.length!==p[key].length){p[key]=kept;ch=true}
+    ok.forEach(x=>{if(p[key].includes(x))return;p[key].push(x);ch=true;missingSlots(p,x,g).forEach(sl=>p.items.push(slotItem(x,sl)))})}
+  return ch||p.items.length!==n0}
 function nightsText(p){const n=days(p).length;return n?(n===1?'日帰り':`${n-1}泊${n}日`):''}
 
 function sample(){
   const p=blank();
   Object.assign(p,{title:'京都・奈良 冬の旅（サンプル）',start:'2026-12-11',end:'2026-12-13',dest:'京都・奈良',members:'2名（山田・佐藤）',
     memo:'これは入力例です。自由に書き換えるか、「旅程一覧」で新しい旅程を作ってください。',split:2});
-  const D=['2026-12-11','2026-12-12','2026-12-13'];p.mealDays=[...D];
+  const D=['2026-12-11','2026-12-12','2026-12-13'];p.mealDays=[...D];p.stayDays=[...D];
   const it=(date,time,endTime,title,cat,transport,place,cost,url,memo)=>({id:uid(),date,time,endTime,title,cat,transport,place,cost,url:url||'',memo:memo||''});
   p.items=[
     it(D[0],'07:30','09:45','東京 → 京都（のぞみ）','move','新幹線','東京駅 18番線',14170,'','EX予約済み・7号車'),
@@ -355,7 +365,7 @@ const TABS=[['library','旅程一覧'],['basic','基本情報'],['schedule','旅
 
 function render(){
   const p=plan();
-  if(ui.tab!=='basic'&&ensureMeals(p))save();
+  if(ui.tab!=='basic'&&ensureSlots(p))save();
   document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
   renderSub();
   document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${ui.tab===k}">${l}</button>`).join('');
@@ -423,7 +433,7 @@ function schedule(p){
     const real=realItems(g.items),sub=real.reduce((a,r)=>a+num(r.cost),0);
     return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span><span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
     ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
-    <div class="btns"><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button>${g.date&&missingMeals(p,g.date).length?`<button class="btn sm" data-act="add-meals" data-date="${g.date}">＋ 食事の枠（${missingMeals(p,g.date).map(m=>m[0].replace('ごはん','')).join('・')}）</button>`:''}</div></div>`}).join('');
+    <div class="btns"><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button>${g.date&&missingSlots(p,g.date).length?`<button class="btn sm" data-act="add-slots" data-date="${g.date}">＋ 枠を戻す（${missingSlots(p,g.date).map(sl=>sl.short).join('・')}）</button>`:''}</div></div>`}).join('');
   return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
   <div class="sec-head"><h2>旅程</h2><span class="hint">旅程の合計 <b class="mono">${yen(totals(p).it)}</b></span></div>
   ${d.length?'':'<p class="note">「基本情報」で出発日と帰着日を入れると、日ごとに予定を分けて表示します。</p>'}
@@ -749,7 +759,7 @@ document.addEventListener('click',e=>{
     case'preset-cancel':ui.presetConfirm=null;render();break;
     case'preset-del':presets=presets.filter(q=>q.id!==ui.presetEdit);ui.presetEdit=null;ui.presetConfirm=null;savePresets();render();break;
     case'preset-reset':presets=defaultPresets();ui.presetEdit=null;ui.presetConfirm=null;savePresets();render();break;
-    case'add-meals':missingMeals(p,d.date).forEach(m=>p.items.push(mealItem(d.date,m)));touch();render();break;
+    case'add-slots':missingSlots(p,d.date).forEach(sl=>p.items.push(slotItem(d.date,sl)));touch();render();break;
     case'new-plan':case'add-sample':case'dup-plan':{
       if(lib.length>=MAX_PLANS){msg('library','err',`保存できる旅程は${MAX_PLANS}件までです。不要な旅程を削除してください。`);break}
       let n;if(d.act==='new-plan')n=blank();else if(d.act==='add-sample')n=sample();
