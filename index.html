@@ -94,6 +94,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 .day-title:focus{outline:none;border-bottom:2px solid var(--sea)}
 .day-title-t{font-size:17px;font-weight:700}
 .tl{list-style:none;margin:0;padding:0}
+.ev-acts{display:flex;align-items:center;gap:6px}
+.grip{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;color:var(--muted);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.grip:hover{background:var(--line);color:var(--ink)}
+.drag-ghost{position:fixed;z-index:50;pointer-events:none;margin:0;opacity:.92;background:var(--card);border:1px solid var(--sea);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.22);padding:8px 12px;list-style:none}
+.dragging-src{opacity:.35}
+.day.drop-on{outline:2px dashed var(--sea);outline-offset:6px;border-radius:6px;background:var(--sea-soft)}
+body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 .ev{display:grid;grid-template-columns:62px 18px minmax(0,1fr) auto;gap:0 10px;padding:10px 0;border-bottom:1px dashed var(--line);align-items:start}
 .ev-time{font-family:var(--f-mono);font-size:15px;text-align:right;line-height:1.35;padding-top:1px}
 .ev-time small{display:block;color:var(--muted);font-size:12px}
@@ -133,7 +140,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
   .r-souv .x,.r-ros .x{justify-self:end}
   .row-head{display:none}
   .ev{grid-template-columns:50px 16px minmax(0,1fr)}
-  .ev > .btn{grid-column:3;justify-self:start;margin-top:6px}
+  .ev > .ev-acts{grid-column:3;justify-self:start;margin-top:6px}
 }
 .pchips{display:flex;flex-wrap:wrap;gap:6px}
 .pchip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 12px;font-size:13px;cursor:pointer}
@@ -436,7 +443,7 @@ function schedule(p){
   if(loose.length||!d.length)groups.push({date:'',label:'日付未設定',items:loose});
   const body=groups.map(g=>{
     const real=realItems(g.items),sub=real.reduce((a,r)=>a+num(r.cost),0);
-    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date?`<input class="day-title" id="dt-${g.date}" data-f="dayTitles.${g.date}" value="${esc(p.dayTitles[g.date]||'')}" placeholder="タイトルを入力" aria-label="${g.label}のタイトル">`:''}<span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
+    return`<div class="day" data-drop-date="${g.date}"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date?`<input class="day-title" id="dt-${g.date}" data-f="dayTitles.${g.date}" value="${esc(p.dayTitles[g.date]||'')}" placeholder="タイトルを入力" aria-label="${g.label}のタイトル">`:''}<span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
     ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
     <div class="btns"><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button>${g.date&&missingSlots(p,g.date).length?`<button class="btn sm" data-act="add-slots" data-date="${g.date}">＋ 枠を戻す（${missingSlots(p,g.date).map(sl=>sl.short).join('・')}）</button>`:''}</div></div>`}).join('');
   return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
@@ -452,7 +459,7 @@ function evRow(r){
   return`<li class="ev cat-${cat}${r.carry?' is-carry':''}"><div class="ev-time">${timeHtml(r,'--:--')}</div><div class="ev-dot"></div>
   <div style="min-width:0"><div class="ev-title">${esc(r.title||'（無題の予定）')}</div><div class="ev-meta">${meta.join('')}</div>
   ${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}${url?`<a class="ev-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>`:''}</div>
-  <button class="btn sm" data-edit="${r.id}">編集</button></li>`}
+  <div class="ev-acts">${r.carry?'':`<span class="grip" data-grip="${r.id}" role="button" aria-label="ドラッグして別の日へ移動" title="ドラッグして別の日へ移動"><svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true"><g fill="currentColor"><circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></g></svg></span>`}<button class="btn sm" data-edit="${r.id}">編集</button></div></li>`}
 function editor(r,d){
   const opt=(v,l,cur)=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(l)}</option>`;
   const k=(f)=>`data-l="items" data-id="${r.id}" data-k="${f}"`;
@@ -736,6 +743,34 @@ function addPreset(k){
   const p=plan(),pre=presets.find(x=>x.id===k);if(!pre)return;const list=pre.items;
   const have=new Set(p.packing.map(r=>r.name.trim()));
   list.forEach(name=>{if(!have.has(name))p.packing.push({id:uid(),name,checked:false})});touch();render()}
+/* ドラッグで予定を別の日へ移動（マウス・タッチ共通） */
+let drag=null;
+document.addEventListener('pointerdown',e=>{
+  const g=e.target.closest('[data-grip]');if(!g||e.button>0)return;
+  const li=g.closest('.ev');if(!li)return;e.preventDefault();
+  const r=li.getBoundingClientRect(),ghost=li.cloneNode(true);
+  ghost.classList.add('drag-ghost');ghost.querySelector('.ev-acts')?.remove();ghost.style.width=Math.min(r.width,520)+'px';
+  document.body.appendChild(ghost);li.classList.add('dragging-src');document.body.classList.add('is-dragging');
+  drag={id:g.dataset.grip,li,ghost,dx:Math.min(e.clientX-r.left,40),dy:e.clientY-r.top,over:null,y:e.clientY,raf:0};
+  moveDrag(e);drag.raf=requestAnimationFrame(autoScroll)});
+function moveDrag(e){
+  if(!drag)return;drag.y=e.clientY;
+  drag.ghost.style.left=(e.clientX-drag.dx)+'px';drag.ghost.style.top=(e.clientY-drag.dy)+'px';
+  const el=document.elementFromPoint(e.clientX,e.clientY),day=el&&el.closest('[data-drop-date]');
+  if(day!==drag.over){drag.over&&drag.over.classList.remove('drop-on');drag.over=day;day&&day.classList.add('drop-on')}}
+function autoScroll(){if(!drag)return;const m=70,h=innerHeight;
+  if(drag.y<m)scrollBy(0,-Math.ceil((m-drag.y)/4));else if(drag.y>h-m)scrollBy(0,Math.ceil((drag.y-(h-m))/4));
+  drag.raf=requestAnimationFrame(autoScroll)}
+function endDrag(drop){
+  if(!drag)return;const d=drag;drag=null;cancelAnimationFrame(d.raf);
+  d.ghost.remove();d.li.classList.remove('dragging-src');document.body.classList.remove('is-dragging');d.over&&d.over.classList.remove('drop-on');
+  if(!drop||!d.over)return;
+  const row=plan().items.find(x=>x.id===d.id),to=d.over.dataset.dropDate;
+  if(row&&row.date!==to){row.date=to;touch();render()}}
+document.addEventListener('pointermove',e=>{if(drag){e.preventDefault();moveDrag(e)}},{passive:false});
+document.addEventListener('pointerup',()=>endDrag(true));
+document.addEventListener('pointercancel',()=>endDrag(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')endDrag(false)});
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const p=plan(),d=b.dataset;
   if(d.tab){ui.tab=d.tab;ui.editing=null;ui.confirmDel=null;ui.msg=null;store(K_TAB,d.tab);render();window.scrollTo({top:0});return}
