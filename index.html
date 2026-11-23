@@ -426,25 +426,40 @@ function basic(p){
 
 /* 旅程 */
 // 日付をまたぐ予定（終了時刻が開始時刻より前）は、翌日にも「前日から」として表示する
-const overnight=r=>!!(r.time&&r.endTime&&r.endTime<r.time);
-function nextIso(s){const d=parseD(s);if(!d)return'';d.setDate(d.getDate()+1);return iso(d)}
+// 終了が何日後か：endPlus（'0'〜'3'）で指定。未指定なら終了時刻が開始より前のとき翌日とみなす
+function endOffset(r){
+  if(!r.endTime||!r.date)return 0;
+  if(r.endPlus!==undefined&&r.endPlus!==null&&r.endPlus!=='')return Math.max(0,Math.min(3,parseInt(r.endPlus,10)||0));
+  return r.time&&r.endTime<r.time?1:0}
+const overnight=r=>endOffset(r)>0;
+function addDays(s,n){const d=parseD(s);if(!d)return'';d.setDate(d.getDate()+n);return iso(d)}
 function dayItems(p,date){
-  const carry=date?p.items.filter(r=>overnight(r)&&nextIso(r.date)===date).map(r=>({...r,carry:true})):[];
+  const carry=[];
+  if(date)p.items.forEach(r=>{const n=endOffset(r);for(let k=1;k<=n;k++)if(addDays(r.date,k)===date)carry.push({...r,carry:true,carryK:k,carryLast:k===n})});
   return[...sortItems(carry),...sortItems(p.items.filter(r=>r.date===date))]}
+// 旅程の日付＋帰着日より後に到着する予定がある場合はその日まで延ばした一覧（extra=帰着日の後）
+function viewDays(p){
+  const d=days(p);if(!d.length)return d.map(x=>({date:x}));
+  const last=d[d.length-1];let max=last;
+  p.items.forEach(r=>{if(!d.includes(r.date))return;const e=addDays(r.date,endOffset(r));if(e>max)max=e});
+  const out=d.map(x=>({date:x,extra:false}));
+  for(let x=addDays(last,1);x<=max;x=addDays(x,1))out.push({date:x,extra:true});
+  return out}
 const realItems=a=>a.filter(r=>!r.carry);
 function timeHtml(r,ph){
-  if(r.carry)return`<span class="carry-t">前日</span><small>〜${esc(r.endTime)}</small>`;
-  return`${esc(r.time||ph)}${r.endTime?`<small>〜${overnight(r)?'翌':''}${esc(r.endTime)}</small>`:''}`}
-const carryChip=r=>r.carry?'<span class="chip carry">前日から続く</span>':'';
+  if(r.carry)return r.carryLast?`<span class="carry-t">${r.carryK===1?'前日':md(r.date).replace(/\(.*\)/,'')}</span><small>〜${esc(r.endTime)}</small>`:'<span class="carry-t">終日</span>';
+  const n=endOffset(r);
+  return`${esc(r.time||ph)}${r.endTime?`<small>〜${n===1?'翌':n>1?`${n}日後 `:''}${esc(r.endTime)}</small>`:''}`}
+const carryChip=r=>r.carry?`<span class="chip carry">${r.carryK===1?'前日':md(r.date)}から続く${r.carryLast?'':'・移動中'}</span>`:'';
 function sortItems(a){return[...a].sort((x,y)=>(x.time||'99')<(y.time||'99')?-1:(x.time||'99')>(y.time||'99')?1:0)}
 function schedule(p){
-  const d=days(p),groups=d.map((date,i)=>({date,label:`${i+1}日目`,items:dayItems(p,date)}));
-  const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));
+  const d=days(p),vd=viewDays(p),all=vd.map(x=>x.date),groups=vd.map((x,i)=>({date:x.date,extra:x.extra,label:`${i+1}日目`,items:dayItems(p,x.date)}));
+  const loose=sortItems(p.items.filter(r=>!all.includes(r.date)));
   if(loose.length||!d.length)groups.push({date:'',label:'日付未設定',items:loose});
   const body=groups.map(g=>{
     const real=realItems(g.items),sub=real.reduce((a,r)=>a+num(r.cost),0);
-    return`<div class="day" data-drop-date="${g.date}"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date?`<input class="day-title" id="dt-${g.date}" data-f="dayTitles.${g.date}" value="${esc(p.dayTitles[g.date]||'')}" placeholder="タイトルを入力" aria-label="${g.label}のタイトル">`:''}<span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
-    ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
+    return`<div class="day" data-drop-date="${g.date}"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.extra?'<span class="chip carry">帰着日の後</span>':''}${g.date?`<input class="day-title" id="dt-${g.date}" data-f="dayTitles.${g.date}" value="${esc(p.dayTitles[g.date]||'')}" placeholder="タイトルを入力" aria-label="${g.label}のタイトル">`:''}<span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
+    ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,all)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
     <div class="btns"><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button>${g.date&&missingSlots(p,g.date).length?`<button class="btn sm" data-act="add-slots" data-date="${g.date}">＋ 枠を戻す（${missingSlots(p,g.date).map(sl=>sl.short).join('・')}）</button>`:''}</div></div>`}).join('');
   return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
   <div class="sec-head"><h2>旅程</h2><span class="hint">旅程の合計 <b class="mono">${yen(totals(p).it)}</b></span></div>
@@ -467,6 +482,7 @@ function editor(r,d){
   <label class="f">日付<select id="e-date-${r.id}" ${k('date')} data-re>${opt('','日付未設定',r.date||'')}${d.map((x,i)=>opt(x,`${i+1}日目 ${md(x)}`,r.date)).join('')}</select></label>
   <label class="f">開始<input id="e-time-${r.id}" type="time" ${k('time')} value="${esc(r.time)}"></label>
   <label class="f">終了<input id="e-end-${r.id}" type="time" ${k('endTime')} value="${esc(r.endTime)}"></label>
+  <label class="f" title="自動：終了時刻が開始より前なら翌日に到着とみなします">終了日<select id="e-endplus-${r.id}" ${k('endPlus')} data-re>${opt('','自動',r.endPlus||'')}${[['0','当日'],['1','翌日（+1）'],['2','2日後（+2）'],['3','3日後（+3）']].map(([v,l])=>opt(v,l+(r.date?` ${md(addDays(r.date,+v))}`:''),r.endPlus||'')).join('')}</select></label>
   <label class="f full">予定名<input id="e-title-${r.id}" type="text" ${k('title')} value="${esc(r.title)}" placeholder="例：金閣寺を見学"></label>
   <label class="f">カテゴリ<select id="e-cat-${r.id}" ${k('cat')}>${CATS.map(([v,l])=>opt(v,l,r.cat||'other')).join('')}</select></label>
   <label class="f">移動手段<select id="e-tr-${r.id}" ${k('transport')}>${TRANS.map(t=>opt(t,t||'—',r.transport||'')).join('')}</select></label>
@@ -577,9 +593,9 @@ function people(p){
 /* しおり */
 function shiori(p){
   const d=days(p),t=totals(p);
-  const groups=d.map((x,i)=>({label:`${i+1}日目`,date:x,items:dayItems(p,x)}));
-  const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));if(loose.length)groups.push({label:'日付未設定',date:'',items:loose});
-  const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date&&p.dayTitles[g.date]?`<span class="day-title-t">${esc(p.dayTitles[g.date])}</span>`:''}</div>
+  const vd=viewDays(p),all=vd.map(x=>x.date),groups=vd.map((x,i)=>({label:`${i+1}日目`,date:x.date,extra:x.extra,items:dayItems(p,x.date)}));
+  const loose=sortItems(p.items.filter(r=>!all.includes(r.date)));if(loose.length)groups.push({label:'日付未設定',date:'',items:loose});
+  const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.extra?'<span class="chip carry">帰着日の後</span>':''}${g.date&&p.dayTitles[g.date]?`<span class="day-title-t">${esc(p.dayTitles[g.date])}</span>`:''}</div>
     ${g.items.map(r=>{const url=safeUrl(r.url),cat=r.cat||'other';return`<div class="b-ev ev cat-${cat}${r.carry?' is-carry':''}"><div class="ev-time">${timeHtml(r,'')}</div><div class="ev-dot"></div>
       <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta">${carryChip(r)}<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)&&!r.carry?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
       ${url?`<div class="qr" data-qr="${esc(url)}" title="${esc(url)}"></div>`:'<div></div>'}</div>`}).join('')||'<div class="empty-day">予定なし</div>'}</div>`).join('');
