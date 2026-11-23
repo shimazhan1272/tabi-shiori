@@ -14,7 +14,7 @@
 :root{
   --paper:#f4f6f3; --card:#ffffff; --ink:#1d2733; --muted:#5b6975; --line:#d8dee1;
   --sea:#0d7480; --sea-ink:#ffffff; --sea-soft:#e0eff0; --sun:#c98612; --danger:#b83b28;
-  --c-sight:#0d7480; --c-food:#c98612; --c-stay:#6a5bb5; --c-move:#55626d; --c-shop:#bf4f7a; --c-other:#8a8f6a;
+  --c-sight:#0d7480; --c-food:#c98612; --c-stay:#6a5bb5; --c-move:#2f6fd1; --c-shop:#bf4f7a; --c-other:#8a8f6a;
   --sunday:#c8423a; --saturday:#2b67c9;
   --f-display:"Noto Sans JP","Noto Sans","Noto Sans KR","Noto Sans SC","Noto Sans TC","Noto Sans Thai","Noto Sans Arabic","Noto Sans Hebrew","Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
   --f-body:"Noto Sans JP","Noto Sans","Noto Sans KR","Noto Sans SC","Noto Sans TC","Noto Sans Thai","Noto Sans Arabic","Noto Sans Hebrew","Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji";
@@ -24,12 +24,12 @@
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#79a6f2; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --paper:#12181c; --card:#1a2228; --ink:#e5ebee; --muted:#95a3ad; --line:#2d3942;
   --sea:#4cb8c2; --sea-ink:#0c1a1d; --sea-soft:#163338; --sun:#e6ae4c; --danger:#ee7c66;
-  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#9aa8b3; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
+  --c-sight:#4cb8c2; --c-food:#e6ae4c; --c-stay:#a497ef; --c-move:#79a6f2; --c-shop:#ec86ad; --c-other:#bcc191; --sunday:#ff8a80; --saturday:#7cb2ff;
   color-scheme:dark; }
 
 *{box-sizing:border-box}
@@ -89,6 +89,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 .day-no{font-family:var(--f-display);font-size:20px}
 .day-date{font-weight:700}
 .day-sum{margin-left:auto;color:var(--muted);font-size:13px}
+.day-title{flex:1 1 12em;min-width:0;font:inherit;font-size:17px;font-weight:700;color:var(--ink);background:transparent;border:0;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 4px}
+.day-title::placeholder{font-weight:400;color:var(--muted);opacity:.7}
+.day-title:focus{outline:none;border-bottom:2px solid var(--sea)}
+.day-title-t{font-size:17px;font-weight:700}
 .tl{list-style:none;margin:0;padding:0}
 .ev{display:grid;grid-template-columns:62px 18px minmax(0,1fr) auto;gap:0 10px;padding:10px 0;border-bottom:1px dashed var(--line);align-items:start}
 .ev-time{font-family:var(--f-mono);font-size:15px;text-align:right;line-height:1.35;padding-top:1px}
@@ -104,7 +108,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 .ev-memo{font-size:13px;margin-top:2px;white-space:pre-wrap;overflow-wrap:anywhere}
 .ev-link{font-size:13px;overflow-wrap:anywhere}
 .chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;color:var(--cat);background:color-mix(in srgb,var(--cat) 14%,transparent)}
-.chip.mv{--cat:var(--c-move);font-weight:500}
+.chip.mv{--cat:var(--muted);font-weight:500}
 .cat-sight{--cat:var(--c-sight)} .cat-food{--cat:var(--c-food)} .cat-stay{--cat:var(--c-stay)}
 .date-wrap{position:relative;display:block;container-type:inline-size}
 .date-wrap .wd{position:absolute;right:40px;top:50%;transform:translateY(-50%);font-size:14px;font-weight:700;color:var(--muted);pointer-events:none}
@@ -191,7 +195,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sea);outline:none;box
 /* PDF用の書き出し面（画面外に置いて撮影する。常にライト配色） */
 .pdf-sheet{position:fixed;left:-10000px;top:0;width:794px;
   --paper:#ffffff;--card:#ffffff;--ink:#1d2733;--muted:#5b6975;--line:#d8dee1;--sea:#0d7480;--sea-ink:#ffffff;--sea-soft:#e0eff0;--sun:#c98612;
-  --c-sight:#0d7480;--c-food:#c98612;--c-stay:#6a5bb5;--c-move:#55626d;--c-shop:#bf4f7a;--c-other:#8a8f6a;
+  --c-sight:#0d7480;--c-food:#c98612;--c-stay:#6a5bb5;--c-move:#2f6fd1;--c-shop:#bf4f7a;--c-other:#8a8f6a;
   background:#fff;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
 .pdf-sheet .booklet{border:0;border-radius:0;padding:36px 40px}
 .pdf-sheet .chip{background:transparent;border:1px solid var(--cat)}
@@ -259,13 +263,14 @@ function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',mem
   items:[],packing:[],souvenirs:[],roster:[],
   ins:{company:'',policy:'',from:'',to:'',tel:'',memo:''},
   emg:{police:'',fire:'',hospital:'',embassy:'',other:''},
-  split:1,fx:{code:'USD',rate:150},mealDays:[],stayDays:[],updated:Date.now()}}
+  split:1,fx:{code:'USD',rate:150},mealDays:[],stayDays:[],dayTitles:{},updated:Date.now()}}
 function normalize(p){
   const hadMeals=!!(p&&Array.isArray(p.mealDays)),hadStay=!!(p&&Array.isArray(p.stayDays));
   const b=blank(),o=Object.assign(b,p&&typeof p==='object'?p:{});
   o.ins=Object.assign(blank().ins,o.ins||{});o.emg=Object.assign(blank().emg,o.emg||{});o.fx=Object.assign(blank().fx,o.fx||{});
   ['items','packing','souvenirs','roster'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];o[k]=o[k].filter(r=>r&&typeof r==='object');o[k].forEach(r=>{if(!r.id)r.id=uid()})});
   // 食事枠の機能より前に作った旅程は、今ある日には枠を足さない（以後に増えた日だけ足す）
+  if(!o.dayTitles||typeof o.dayTitles!=='object'||Array.isArray(o.dayTitles))o.dayTitles={};
   if(!hadMeals)o.mealDays=days(o);
   if(!hadStay)o.stayDays=days(o);
   if(!o.id)o.id=uid();return o}
@@ -431,7 +436,7 @@ function schedule(p){
   if(loose.length||!d.length)groups.push({date:'',label:'日付未設定',items:loose});
   const body=groups.map(g=>{
     const real=realItems(g.items),sub=real.reduce((a,r)=>a+num(r.cost),0);
-    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span><span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
+    return`<div class="day"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date?`<input class="day-title" id="dt-${g.date}" data-f="dayTitles.${g.date}" value="${esc(p.dayTitles[g.date]||'')}" placeholder="タイトルを入力" aria-label="${g.label}のタイトル">`:''}<span class="day-sum">${real.length}件 ・ <span class="mono">${yen(sub)}</span></span></div>
     ${g.items.length?`<ul class="tl">${g.items.map(r=>ui.editing===r.id&&!r.carry?`<li>${editor(r,d)}</li>`:evRow(r)).join('')}</ul>`:'<div class="empty-day">まだ予定がありません</div>'}
     <div class="btns"><button class="btn sm" data-add="items" data-date="${g.date}">＋ 予定を追加</button>${g.date&&missingSlots(p,g.date).length?`<button class="btn sm" data-act="add-slots" data-date="${g.date}">＋ 枠を戻す（${missingSlots(p,g.date).map(sl=>sl.short).join('・')}）</button>`:''}</div></div>`}).join('');
   return`<section class="card" style="display:flex;flex-direction:column;gap:22px">
@@ -567,7 +572,7 @@ function shiori(p){
   const d=days(p),t=totals(p);
   const groups=d.map((x,i)=>({label:`${i+1}日目`,date:x,items:dayItems(p,x)}));
   const loose=sortItems(p.items.filter(r=>!d.includes(r.date)));if(loose.length)groups.push({label:'日付未設定',date:'',items:loose});
-  const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span></div>
+  const sched=groups.map(g=>`<div class="day" style="margin-bottom:14px"><div class="day-head"><span class="day-no">${g.label}</span><span class="day-date mono">${md(g.date)}</span>${g.date&&p.dayTitles[g.date]?`<span class="day-title-t">${esc(p.dayTitles[g.date])}</span>`:''}</div>
     ${g.items.map(r=>{const url=safeUrl(r.url),cat=r.cat||'other';return`<div class="b-ev ev cat-${cat}${r.carry?' is-carry':''}"><div class="ev-time">${timeHtml(r,'')}</div><div class="ev-dot"></div>
       <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta">${carryChip(r)}<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)&&!r.carry?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
       ${url?`<div class="qr" data-qr="${esc(url)}" title="${esc(url)}"></div>`:'<div></div>'}</div>`}).join('')||'<div class="empty-day">予定なし</div>'}</div>`).join('');
