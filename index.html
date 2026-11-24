@@ -50,7 +50,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .saved{font-size:12px;color:var(--muted);min-height:1.2em;transition:opacity .3s}
 
 /* tabs */
-.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.tabs{display:flex;flex-direction:column}
+.nav-main{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.nav-main .tab{font-size:16px;padding:9px 14px}
+.nav-sub{display:flex;gap:6px;overflow-x:auto;padding:10px 2px 2px;scrollbar-width:thin}
+.subtab{flex:none;background:none;border:1px solid transparent;border-radius:99px;padding:6px 14px;color:var(--muted);cursor:pointer;font:inherit;font-size:14px;font-weight:500;white-space:nowrap}
+.subtab:hover{color:var(--ink)}
+.subtab[aria-selected="true"]{background:var(--card);border-color:var(--line);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.06)}
 .tab{flex:none;background:none;border:0;padding:9px 12px;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;font-weight:500;white-space:nowrap}
 .tab:hover{color:var(--ink)}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--sea);font-weight:700}
@@ -130,14 +136,14 @@ body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 .rows{display:flex;flex-direction:column;gap:8px}
 .row{display:grid;gap:8px;align-items:center}
 .row-head{font-size:12px;color:var(--muted);font-weight:500}
-.r-souv{grid-template-columns:2fr 1.5fr 1.2fr 110px 1.6fr 34px}
 .r-ros{grid-template-columns:1.4fr 1.4fr 1.8fr 1.6fr 1.4fr 34px}
+.r-ext{grid-template-columns:2fr 1.5fr 120px 2fr 34px}
 .r-pack{grid-template-columns:28px 1fr 34px}
 .r-pack input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
 .r-pack.done input[type=text]{text-decoration:line-through;color:var(--muted)}
 @media (max-width:680px){
-  .r-souv,.r-ros{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--line);border-radius:8px}
-  .r-souv .x,.r-ros .x{justify-self:end}
+  .r-ros,.r-ext{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--line);border-radius:8px}
+  .r-ros .x,.r-ext .x{justify-self:end}
   .row-head{display:none}
   .ev{grid-template-columns:50px 16px minmax(0,1fr)}
   .ev > .ev-acts{grid-column:3;justify-self:start;margin-top:6px}
@@ -152,7 +158,8 @@ body.is-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
 .total{display:flex;justify-content:flex-end;gap:12px;font-weight:700;font-size:16px;padding-top:6px;border-top:1px solid var(--line)}
 
 /* costs */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stats .stat.key{grid-column:1/-1}
 .stat{padding:12px 14px;border-radius:var(--r);background:var(--sea-soft)}
 .stat b{display:block;font-family:var(--f-mono);font-size:22px;font-variant-numeric:tabular-nums}
 .stat span{font-size:12px;color:var(--muted)}
@@ -267,7 +274,7 @@ function updWd(t){const w=t.parentElement&&t.parentElement.querySelector('.wd');
 function safeUrl(u){return /^https?:\/\//i.test(u||'')?u:''}
 
 function blank(){return{id:uid(),title:'',start:'',end:'',dest:'',members:'',memo:'',
-  items:[],packing:[],souvenirs:[],roster:[],
+  items:[],packing:[],souvenirs:[],extras:[],roster:[],
   ins:{company:'',policy:'',from:'',to:'',tel:'',memo:''},
   emg:{police:'',fire:'',hospital:'',embassy:'',other:''},
   split:1,fx:{code:'USD',rate:150},mealDays:[],stayDays:[],dayTitles:{},updated:Date.now()}}
@@ -275,8 +282,10 @@ function normalize(p){
   const hadMeals=!!(p&&Array.isArray(p.mealDays)),hadStay=!!(p&&Array.isArray(p.stayDays));
   const b=blank(),o=Object.assign(b,p&&typeof p==='object'?p:{});
   o.ins=Object.assign(blank().ins,o.ins||{});o.emg=Object.assign(blank().emg,o.emg||{});o.fx=Object.assign(blank().fx,o.fx||{});
-  ['items','packing','souvenirs','roster'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];o[k]=o[k].filter(r=>r&&typeof r==='object');o[k].forEach(r=>{if(!r.id)r.id=uid()})});
+  ['items','packing','souvenirs','extras','roster'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];o[k]=o[k].filter(r=>r&&typeof r==='object');o[k].forEach(r=>{if(!r.id)r.id=uid()})});
   // 食事枠の機能より前に作った旅程は、今ある日には枠を足さない（以後に増えた日だけ足す）
+  // おみやげタブ廃止に伴い、おみやげリストは「その他の費用」（種類：おみやげ）へ移す
+  if(o.souvenirs.length){o.souvenirs.forEach(r=>o.extras.push({id:r.id||uid(),item:r.item||'',kind:'おみやげ',price:r.price??'',memo:[r.shop&&`購入先：${r.shop}`,r.to&&`渡す相手：${r.to}`,r.memo].filter(Boolean).join(' / ')}));o.souvenirs=[]}
   if(!o.dayTitles||typeof o.dayTitles!=='object'||Array.isArray(o.dayTitles))o.dayTitles={};
   if(!hadMeals)o.mealDays=days(o);
   if(!hadStay)o.stayDays=days(o);
@@ -335,10 +344,10 @@ function sample(){
     it(D[2],'16:30','18:45','京都 → 東京（のぞみ）','move','新幹線','京都駅',14170,'')
   ];
   p.packing=PRESETS.domestic.map((name,i)=>({id:uid(),name,checked:i<5}));
-  p.souvenirs=[
-    {id:uid(),item:'生八ツ橋 詰め合わせ',shop:'京都駅',to:'職場',price:1200,memo:'20個入り'},
-    {id:uid(),item:'抹茶ロールケーキ',shop:'祇園',to:'家族',price:1800,memo:'要冷蔵'},
-    {id:uid(),item:'鹿の手ぬぐい',shop:'奈良町',to:'自分',price:900,memo:''}
+  p.extras=[
+    {id:uid(),item:'国内旅行保険',kind:'保険',price:1500,memo:'2名分'},
+    {id:uid(),item:'生八ツ橋 詰め合わせ',kind:'おみやげ',price:1200,memo:'京都駅 / 職場へ'},
+    {id:uid(),item:'抹茶ロールケーキ',kind:'おみやげ',price:1800,memo:'祇園 / 要冷蔵'}
   ];
   p.roster=[
     {id:uid(),name:'山田 太郎',tel:'090-0000-0000',mail:'',emg:'自宅 03-0000-0000',memo:'幹事'},
@@ -356,7 +365,7 @@ let curId=load(K_CUR);if(!lib.some(p=>p.id===curId))curId=lib[0].id;
 let presets;try{presets=JSON.parse(load(K_PRE)||'null')}catch(e){presets=null}
 presets=presets?cleanPresets(presets):defaultPresets();
 function savePresets(){store(K_PRE,JSON.stringify(presets));const el=document.getElementById('saved');if(el){el.textContent='プリセットを保存しました';el.style.opacity=1;clearTimeout(savedTimer);savedTimer=setTimeout(()=>{el.style.opacity=0},1800)}}
-const ui={presetOpen:false,presetEdit:null,presetConfirm:null,tab:load(K_TAB)||'schedule',editing:null,confirmDel:null,showRoster:false,showEmg:false,fxAmt:'',fxDir:'toYen',exportText:'',msg:null};
+const ui={presetOpen:false,presetEdit:null,presetConfirm:null,tab:load(K_TAB)||'schedule',sub:{},editing:null,confirmDel:null,showRoster:false,showEmg:false,fxAmt:'',fxDir:'toYen',exportText:'',msg:null};
 const plan=()=>lib.find(p=>p.id===curId);
 let savedTimer;
 function save(){
@@ -368,20 +377,27 @@ function touch(){plan().updated=Date.now();save()}
 
 /* ---------- derived ---------- */
 function totals(p){
-  const it=p.items.reduce((a,r)=>a+num(r.cost),0),sv=p.souvenirs.reduce((a,r)=>a+num(r.price),0);
+  const it=p.items.reduce((a,r)=>a+num(r.cost),0),ex=p.extras.reduce((a,r)=>a+num(r.price),0);
   const per=Math.max(1,Math.round(num(p.split))||1);
-  return{it,sv,all:it+sv,per,each:Math.ceil((it+sv)/per)}}
+  return{it,ex,all:it+ex,per,each:Math.ceil((it+ex)/per)}}
 
 /* ---------- tabs ---------- */
-const TABS=[['library','旅程一覧'],['basic','基本情報'],['schedule','旅程'],['packing','持ち物'],['souvenir','おみやげ'],['cost','費用'],['people','名簿・緊急'],['shiori','しおり'],['data','データ']];
+const TABS=[['library','旅程一覧'],['basic','基本情報'],['schedule','旅程'],['packing','持ち物'],['data','データ'],['cost','費用一覧'],['extras','その他の費用'],['fx','通貨換算'],['shiori','しおり'],['people','名簿・緊急']];
+// 2段ナビ：上段が大分類、下段がその中のタブ。[キー, 名前, タブ, 最初に開くタブ]
+const GROUPS=[['prep','準備',['library','basic','schedule','packing','data'],'schedule'],['money','お金',['cost','extras','fx'],'cost'],['day','当日',['shiori','people'],'shiori']];
+const groupOf=t=>GROUPS.find(g=>g[2].includes(t))||GROUPS[0];
+const tabLabel=k=>(TABS.find(t=>t[0]===k)||[,''])[1];
 
 function render(){
   const p=plan();
+  if(!TABS.some(([k])=>k===ui.tab))ui.tab='schedule';
   if(ui.tab!=='basic'&&ensureSlots(p))save();
   document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
   renderSub();
-  document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${ui.tab===k}">${l}</button>`).join('');
-  const P={library,basic,schedule,packing,souvenir,cost,people,shiori,data}[ui.tab]||schedule;
+  const grp=groupOf(ui.tab);ui.sub[grp[0]]=ui.tab;
+  document.getElementById('tabs').innerHTML=`<div class="nav-main" role="tablist" aria-label="大分類">${GROUPS.map(g=>`<button class="tab" role="tab" data-group="${g[0]}" aria-selected="${g===grp}">${g[1]}</button>`).join('')}</div>
+  <div class="nav-sub" role="tablist" aria-label="${grp[1]}">${grp[2].map(k=>`<button class="subtab" role="tab" data-tab="${k}" aria-selected="${ui.tab===k}">${tabLabel(k)}</button>`).join('')}</div>`;
+  const P={library,basic,schedule,packing,extras:extrasSection,cost,fx:fxTab,people,shiori,data}[ui.tab]||schedule;
   document.getElementById('panel').innerHTML=P(p);
   if(ui.tab==='shiori')drawQR();
 }
@@ -529,36 +545,26 @@ function refreshPresetUI(){
   if(chip&&cur)chip.textContent=cur.name}
 function packNames(p){return[...new Set(p.packing.map(r=>String(r.name||'').trim()).filter(Boolean))]}
 
-/* おみやげ */
-function souvenir(p){
-  const f=(r,k,type,ph,extra='')=>`<input id="sv-${k}-${r.id}" type="${type}" data-l="souvenirs" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}" ${extra}>`;
-  return`<section class="card" style="display:flex;flex-direction:column;gap:12px">
-  <div class="sec-head"><h2>おみやげリスト</h2></div>
-  <div class="rows"><div class="row r-souv row-head"><span>品物</span><span>購入先・お店</span><span>誰に</span><span>金額（円）</span><span>メモ</span><span></span></div>
-  ${p.souvenirs.map(r=>`<div class="row r-souv">${f(r,'item','text','品物')}${f(r,'shop','text','購入先・お店')}${f(r,'to','text','誰に')}${f(r,'price','number','金額（円）','min="0" inputmode="numeric"')}${f(r,'memo','text','メモ')}<button class="x" aria-label="削除" data-del="souvenirs" data-id="${r.id}">×</button></div>`).join('')}</div>
-  <div class="btns"><button class="btn" data-add="souvenirs">＋ おみやげを追加</button></div>
-  <div class="total"><span>合計</span><span class="mono" id="svTotal">${yen(totals(p).sv)}</span></div></section>`}
-
 /* 費用 */
 function costSummary(p){
   const t=totals(p),by={};CATS.forEach(([k])=>by[k]={sum:0,n:0});
   p.items.forEach(r=>{const c=by[r.cat]?r.cat:'other';by[c].sum+=num(r.cost);by[c].n++});
-  by.shop.sum+=t.sv;by.shop.n+=p.souvenirs.length;
   const max=Math.max(1,...Object.values(by).map(v=>v.sum));
   const d=days(p);
   const perDay=d.map((x,i)=>`<tr><td>${i+1}日目 ${md(x)}</td><td class="n">${yen(p.items.filter(r=>r.date===x).reduce((a,r)=>a+num(r.cost),0))}</td></tr>`).join('');
-  return`<div class="stats"><div class="stat"><span>旅程の合計</span><b>${yen(t.it)}</b></div><div class="stat"><span>おみやげ</span><b>${yen(t.sv)}</b></div>
+  return`<div class="stats"><div class="stat"><span>旅程の合計</span><b>${yen(t.it)}</b></div><div class="stat"><span>旅程以外の費用</span><b>${yen(t.ex)}</b></div>
   <div class="stat"><span>全体の合計</span><b>${yen(t.all)}</b></div><div class="stat key"><span>1人あたり（${t.per}人で割り勘）</span><b>${yen(t.each)}</b></div></div>
   <h3 style="font-size:16px;margin-top:6px">カテゴリ別</h3>
-  <div class="bars">${CATS.map(([k,l])=>`<div class="bar cat-${k}"><span>${l}${k==='shop'?'<small style="color:var(--muted)">*</small>':''}</span><span class="track"><i style="width:${by[k].sum/max*100}%"></i></span><span class="amt">${yen(by[k].sum)}</span><span class="cnt">${by[k].n}件</span></div>`).join('')}</div>
-  <p class="hint">* 買い物にはおみやげリストの金額を含みます。</p>
+  <div class="bars">${CATS.map(([k,l])=>`<div class="bar cat-${k}"><span>${l}</span><span class="track"><i style="width:${by[k].sum/max*100}%"></i></span><span class="amt">${yen(by[k].sum)}</span><span class="cnt">${by[k].n}件</span></div>`).join('')}</div>
+  <p class="hint">「その他の費用」タブの金額はカテゴリ別・日別には含みません。</p>
   ${perDay?`<h3 style="font-size:16px">日別</h3><div class="tbl-wrap"><table class="b-table"><tbody>${perDay}</tbody></table></div>`:''}`}
 function cost(p){
-  const cur=CUR.find(c=>c[0]===p.fx.code)||CUR[0];
   return`<section class="card" style="display:flex;flex-direction:column;gap:14px">
   <div class="sec-head"><h2>費用の集計</h2><label class="f" style="flex-direction:row;align-items:center;gap:8px;font-size:14px">割り勘する人数<input id="c-split" type="number" min="1" step="1" style="width:80px" data-f="split" value="${esc(p.split)}"></label></div>
-  <div id="costSummary" style="display:flex;flex-direction:column;gap:12px">${costSummary(p)}</div></section>
-  <section class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div id="costSummary" style="display:flex;flex-direction:column;gap:12px">${costSummary(p)}</div></section>`}
+function fxTab(p){
+  const cur=CUR.find(c=>c[0]===p.fx.code)||CUR[0];
+  return`<section class="card" style="display:flex;flex-direction:column;gap:12px">
   <div class="sec-head"><h2>通貨の換算</h2></div>
   <p class="hint">レートは手入力です。初期値はおおよその目安なので、両替所や銀行の最新レートに置き換えてください。</p>
   <div class="fx">
@@ -567,6 +573,17 @@ function cost(p){
   <label class="f">換算の向き<select id="fx-dir" data-ui="fxDir"><option value="toYen"${ui.fxDir==='toYen'?' selected':''}>${cur[0]} → 円</option><option value="fromYen"${ui.fxDir==='fromYen'?' selected':''}>円 → ${cur[0]}</option></select></label>
   <label class="f">金額<input id="fx-amt" type="number" step="any" data-ui="fxAmt" value="${esc(ui.fxAmt)}" placeholder="例：25"></label>
   </div><div class="static mono" id="fxOut" style="font-size:20px">${fxOut(p)}</div></section>`}
+const EX_KINDS=['航空券','宿泊','おみやげ','保険','ビザ・手続き','通信（SIM・Wi-Fi）','空港・駅までの交通','両替・手数料','レンタル','準備・買い物','その他'];
+function extrasSection(p){
+  const f=(r,k,type,ph,extra='')=>`<input id="ex-${k}-${r.id}" type="${type}" data-l="extras" data-id="${r.id}" data-k="${k}" value="${esc(r[k])}" placeholder="${ph}" aria-label="${ph}" ${extra}>`;
+  const kind=r=>`<select id="ex-kind-${r.id}" data-l="extras" data-id="${r.id}" data-k="kind" aria-label="種類">${EX_KINDS.map(x=>`<option${x===(r.kind||'その他')?' selected':''}>${x}</option>`).join('')}</select>`;
+  return`<section class="card" style="display:flex;flex-direction:column;gap:12px">
+  <div class="sec-head"><h2>旅程以外の費用</h2></div>
+  <p class="hint">日程に入らない費用（旅行保険、ビザ、SIM・Wi-Fi、空港までの交通など）を入れてください。全体の合計と割り勘に含まれます。</p>
+  <div class="rows"><div class="row r-ext row-head"><span>項目</span><span>種類</span><span>金額（円）</span><span>メモ</span><span></span></div>
+  ${p.extras.map(r=>`<div class="row r-ext">${f(r,'item','text','項目')}${kind(r)}${f(r,'price','number','金額（円）','min="0" inputmode="numeric"')}${f(r,'memo','text','メモ')}<button class="x" aria-label="削除" data-del="extras" data-id="${r.id}">×</button></div>`).join('')}</div>
+  <div class="btns"><button class="btn" data-add="extras">＋ 費用を追加</button></div>
+  <div class="total"><span>合計</span><span class="mono" id="exTotal">${yen(totals(p).ex)}</span></div></section>`}
 function fxOut(p){
   const r=num(p.fx.rate),a=num(ui.fxAmt);const code=p.fx.code;
   if(!ui.fxAmt||!r)return'—';
@@ -600,7 +617,6 @@ function shiori(p){
       <div style="min-width:0"><div class="ev-title">${esc(r.title)}</div><div class="ev-meta">${carryChip(r)}<span class="chip cat-${cat}">${CAT_LABEL[cat]||'その他'}</span>${r.transport?`<span class="chip mv">${esc(r.transport)}</span>`:''}${r.place?`<span>${esc(r.place)}</span>`:''}${num(r.cost)&&!r.carry?`<span class="mono">${yen(r.cost)}</span>`:''}</div>${r.memo?`<div class="ev-memo">${esc(r.memo)}</div>`:''}</div>
       ${url?`<div class="qr" data-qr="${esc(url)}" title="${esc(url)}"></div>`:'<div></div>'}</div>`}).join('')||'<div class="empty-day">予定なし</div>'}</div>`).join('');
   const pk=p.packing.length?`<section class="b-sec"><h3>持ち物</h3><ul class="checks">${p.packing.map(r=>`<li class="${r.checked?'on':''}">${esc(r.name)}</li>`).join('')}</ul></section>`:'';
-  const sv=p.souvenirs.length?`<section class="b-sec"><h3>おみやげ</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>品物</th><th>お店</th><th>誰に</th><th style="text-align:right">金額</th></tr></thead><tbody>${p.souvenirs.map(r=>`<tr><td>${esc(r.item)}</td><td>${esc(r.shop)}</td><td>${esc(r.to)}</td><td class="n">${yen(r.price)}</td></tr>`).join('')}</tbody></table></div></section>`:'';
   const ro=ui.showRoster&&p.roster.length?`<section class="b-sec"><h3>名簿</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>氏名</th><th>電話</th><th>緊急連絡先</th><th>メモ</th></tr></thead><tbody>${p.roster.map(r=>`<tr><td>${esc(r.name)}</td><td class="mono">${esc(r.tel)}</td><td>${esc(r.emg)}</td><td>${esc(r.memo)}</td></tr>`).join('')}</tbody></table></div></section>`:'';
   const em=ui.showEmg?`<section class="b-sec"><h3>保険・緊急連絡先</h3><table class="b-table"><tbody>${[['保険会社',p.ins.company],['証券番号',p.ins.policy],['保険期間',(p.ins.from||p.ins.to)?`${p.ins.from} 〜 ${p.ins.to}`:''],['保険会社の連絡先',p.ins.tel],['警察・緊急',p.emg.police],['救急・消防',p.emg.fire],['現地の病院',p.emg.hospital],['大使館・領事館',p.emg.embassy],['その他',p.emg.other]].filter(x=>x[1]).map(x=>`<tr><th style="width:9em">${x[0]}</th><td>${esc(x[1])}</td></tr>`).join('')}</tbody></table></section>`:'';
   return`<div class="card no-print" style="display:flex;flex-direction:column;gap:8px"><div class="toggles">
@@ -614,8 +630,8 @@ function shiori(p){
   ${p.dest?`<span>行き先：${esc(p.dest)}</span>`:''}${p.members?`<span>参加者：${esc(p.members)}</span>`:''}</div>
   ${p.memo?`<section class="b-sec"><h3>メモ</h3><div style="white-space:pre-wrap">${esc(p.memo)}</div></section>`:''}
   <section class="b-sec"><h3>旅程</h3>${sched||'<p class="hint">予定がありません</p>'}</section>
-  ${pk}${sv}
-  <section class="b-sec"><h3>費用</h3><table class="b-table"><tbody><tr><th>旅程の合計</th><td class="n">${yen(t.it)}</td></tr><tr><th>おみやげ</th><td class="n">${yen(t.sv)}</td></tr><tr><th>全体の合計</th><td class="n"><b>${yen(t.all)}</b></td></tr><tr><th>1人あたり（${t.per}人）</th><td class="n"><b>${yen(t.each)}</b></td></tr></tbody></table></section>
+  ${pk}${p.extras.length?`<section class="b-sec"><h3>旅程以外の費用</h3><div class="tbl-wrap"><table class="b-table"><thead><tr><th>項目</th><th>種類</th><th>メモ</th><th style="text-align:right">金額</th></tr></thead><tbody>${p.extras.map(r=>`<tr><td>${esc(r.item)}</td><td>${esc(r.kind||'')}</td><td>${esc(r.memo)}</td><td class="n">${yen(r.price)}</td></tr>`).join('')}</tbody></table></div></section>`:''}
+  <section class="b-sec"><h3>費用</h3><table class="b-table"><tbody><tr><th>旅程の合計</th><td class="n">${yen(t.it)}</td></tr>${t.ex?`<tr><th>旅程以外の費用</th><td class="n">${yen(t.ex)}</td></tr>`:''}<tr><th>全体の合計</th><td class="n"><b>${yen(t.all)}</b></td></tr><tr><th>1人あたり（${t.per}人）</th><td class="n"><b>${yen(t.each)}</b></td></tr></tbody></table></section>
   ${ro}${em}</article>`}
 function drawQR(){
   if(typeof QRCode==='undefined')return;
@@ -737,7 +753,7 @@ function onEdit(e){
   if(t.dataset.f==='title')document.getElementById('hTitle').textContent=p.title||'（タイトル未設定）';
   if(t.dataset.f==='dest'||t.dataset.f==='start'||t.dataset.f==='end'){renderSub();const ne=document.getElementById('nights');if(ne)ne.textContent=nightsText(p)||'—'}
   const cs=document.getElementById('costSummary');if(cs)cs.innerHTML=costSummary(p);
-  const st=document.getElementById('svTotal');if(st)st.textContent=yen(totals(p).sv);
+  const xt=document.getElementById('exTotal');if(xt)xt.textContent=yen(totals(p).ex);
   const fo=document.getElementById('fxOut');if(fo)fo.textContent=fxOut(p);
   if(t.dataset.l==='packing'&&t.dataset.k==='checked'){t.closest('.row').classList.toggle('done',t.checked);
     const done=p.packing.filter(r=>r.checked).length,n=p.packing.length;
@@ -789,13 +805,14 @@ document.addEventListener('pointercancel',()=>endDrag(false));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')endDrag(false)});
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const p=plan(),d=b.dataset;
+  if(d.group){const g=GROUPS.find(x=>x[0]===d.group);if(g){d.tab=ui.sub[g[0]]||g[3]}}
   if(d.tab){ui.tab=d.tab;ui.editing=null;ui.confirmDel=null;ui.msg=null;store(K_TAB,d.tab);render();window.scrollTo({top:0});return}
   if(d.edit){ui.editing=d.edit;render();const el=document.getElementById('e-title-'+d.edit);if(el)el.focus();return}
   if(d.add){
     let row;
     if(d.add==='items')row={id:uid(),date:d.date||'',time:'',endTime:'',title:'',cat:'sight',transport:'',place:'',cost:'',url:'',memo:''};
     else if(d.add==='packing')row={id:uid(),name:'',checked:false};
-    else if(d.add==='souvenirs')row={id:uid(),item:'',shop:'',to:'',price:'',memo:''};
+    else if(d.add==='extras')row={id:uid(),item:'',kind:'その他',price:'',memo:''};
     else if(d.add==='roster')row={id:uid(),name:'',tel:'',mail:'',emg:'',memo:''};
     p[d.add].push(row);if(d.add==='items')ui.editing=row.id;touch();render();
     const first=d.add==='items'?document.getElementById('e-title-'+row.id):document.querySelector(`[data-id="${row.id}"][type=text]`);if(first)first.focus();return}
